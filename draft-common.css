@@ -379,6 +379,77 @@ p {
     background: #f3f4f6;
 }
 
+/* ============================================================================
+   단계 E 추가: 2단 그리드 레이아웃 (왼쪽 멤버, 오른쪽 위 내팀 / 아래 상대팀)
+   ============================================================================ */
+.split-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.split-grid > .card {
+    margin: 0;
+}
+
+.split-grid-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.split-grid-right > .card {
+    margin: 0;
+}
+
+@media (max-width: 720px) {
+    .split-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 진 사람의 read-only 영역 - 상호작용 차단 */
+.is-readonly {
+    position: relative;
+    opacity: 0.85;
+    pointer-events: none;
+}
+
+.is-readonly-banner {
+    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    color: var(--text-muted);
+    padding: 10px 14px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+/* 팀 박스 (세로 형태) — pick-order/draft-2team에서 공통 사용 */
+.team-vbox-row {
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-main);
+    margin-bottom: 6px;
+}
+.team-vbox-row:last-child { margin-bottom: 0; }
+.team-vbox-row.leader {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-color: var(--warning);
+    font-weight: 800;
+    color: #92400e;
+}
+.team-vbox-row.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    border-style: dashed;
+    background: #fafafa;
+}
+
 /* ===== 반응형 (작은 화면) ===== */
 @media (max-width: 480px) {
     body {
