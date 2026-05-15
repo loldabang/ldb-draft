@@ -7,8 +7,8 @@
 // 1. Supabase 설정
 // ============================================================================
 // ⚠️ 아래 두 값을 본인의 Supabase 프로젝트 정보로 교체하세요.
-const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
-const SUPABASE_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY_HERE';
+const SUPABASE_URL = 'https://eseskfeyvxqdvqqofeqb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSH-Q5GCTXkRJ0UDd-IrlQ_DYKSkQzc';
 
 // ============================================================================
 // 2. URL 파라미터 파싱
