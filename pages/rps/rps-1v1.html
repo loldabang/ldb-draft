@@ -374,10 +374,15 @@
                 afterBox.innerHTML = `
                     <div class="status-icon">😔</div>
                     <div class="status-title">패배</div>
-                    <div class="status-desc">상대가 ${ROUND === 1 ? '픽 순서' : '진영'}를 결정 중입니다...</div>
+                    <div class="status-desc">${ROUND === 1 ? '드래프트 멤버 미리보기로 이동합니다...' : '결과 화면으로 이동합니다...'}</div>
                 `;
-                // 진 사람은 현재 페이지에서 대기.
-                // 방 status가 바뀌면 onRoom 콜백이 main.html로 보냄.
+                // 단계 F 변경: ROUND 1에서는 진 사람도 pick-order로 자동 이동 (read-only)
+                if (isNewWinnerSeen) {
+                    setTimeout(() => {
+                        if (ROUND === 1) goToPickOrder();
+                        // ROUND 2의 진 사람은 onRoom의 status 변화로 라우팅됨
+                    }, 1800);
+                }
             }
             return;
         }
