@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="../../draft-common.css">
     <style>
         body { align-items: flex-start; }
-        .page-wrap { max-width: 1000px; }
+        .page-wrap { max-width: 1180px; }
 
         .section-title-2 {
             font-size: 14px;
@@ -19,17 +19,17 @@
             border-bottom: 1px solid var(--border);
         }
 
-        /* 픽 순서 선택 버튼 */
+        /* 픽 순서 선택 버튼 (3단 그리드 안에서는 세로로) */
         .order-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-top: 14px;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 10px;
         }
         .order-btn {
-            padding: 24px 14px;
+            padding: 16px 10px;
             border: 3px solid var(--border);
-            border-radius: 12px;
+            border-radius: 10px;
             background: #fff;
             cursor: pointer;
             transition: all 0.2s;
@@ -37,8 +37,8 @@
             font-family: 'Pretendard', sans-serif;
         }
         .order-btn:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.08);
         }
         .order-btn:disabled { cursor: not-allowed; opacity: 0.5; }
         .order-btn.first {
@@ -57,29 +57,30 @@
             border-color: #0277bd;
             background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
         }
-        .order-icon { font-size: 36px; margin-bottom: 6px; line-height: 1; }
-        .order-label { font-size: 16px; font-weight: 800; color: var(--text-main); margin-bottom: 4px; }
-        .order-desc { font-size: 11px; color: var(--text-muted); line-height: 1.3; }
+        .order-icon { font-size: 28px; margin-bottom: 4px; line-height: 1; }
+        .order-label { font-size: 15px; font-weight: 800; color: var(--text-main); margin-bottom: 2px; }
+        .order-desc { font-size: 10px; color: var(--text-muted); line-height: 1.3; }
 
         .order-explanation {
             background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-            border-radius: 10px;
-            padding: 12px;
-            margin-top: 14px;
-            font-size: 12px;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 11px;
             color: var(--text-muted);
         }
         .order-explanation strong { color: var(--text-main); }
         .order-explanation .sequence {
             font-family: 'Pretendard', monospace;
             background: #fff;
-            padding: 6px 10px;
-            border-radius: 6px;
-            margin-top: 6px;
+            padding: 5px 8px;
+            border-radius: 5px;
+            margin-top: 5px;
             font-weight: 700;
             color: var(--text-main);
             text-align: center;
-            letter-spacing: 1.5px;
+            letter-spacing: 1px;
+            font-size: 11px;
         }
 
         /* 결과 배너 (이긴/진 분기) */
@@ -117,15 +118,15 @@
                 </div>
             </div>
 
-            <!-- 2단 그리드 -->
-            <div class="split-grid">
+            <!-- 3단 그리드: 멤버 / 양 팀 / 픽 순서 컨트롤 -->
+            <div class="triple-grid">
                 <!-- 왼쪽: 드래프트 멤버 8명 -->
                 <div class="card">
                     <div class="section-title-2">📋 드래프트 멤버 (<span id="memberCount">8</span>명)</div>
                     <div id="memberPreviewList" class="member-preview-list"></div>
                 </div>
 
-                <!-- 오른쪽: 내 팀 (위) / 상대 팀 (아래) -->
+                <!-- 가운데: 내 팀 (위) / 상대 팀 (아래) -->
                 <div class="split-grid-right">
                     <div class="card">
                         <div class="section-title-2"><span id="myTeamHeader">🏆 내 팀</span></div>
@@ -136,41 +137,44 @@
                         <div id="otherTeamBox"></div>
                     </div>
                 </div>
-            </div>
 
-            <!-- 픽 순서 선택 (이긴 사람만) -->
-            <div class="card" id="pickOrderControls" style="display:none;">
-                <h2 style="margin-top:0; font-size:16px;">⚡ 픽 순서 선택</h2>
-                <p style="text-align:center; font-size:13px;">먼저 픽할지, 나중에 픽할지 선택하세요.</p>
+                <!-- 오른쪽: 픽 순서 선택 (이긴 사람) 또는 대기 박스 (진 사람) -->
+                <div>
+                    <!-- 픽 순서 선택 (이긴 사람만) -->
+                    <div class="card" id="pickOrderControls" style="display:none;">
+                        <h2 style="margin-top:0; font-size:15px;">⚡ 픽 순서 선택</h2>
+                        <p style="text-align:center; font-size:12px; margin-bottom:10px;">먼저 픽할지, 나중에 픽할지 선택하세요.</p>
 
-                <div class="order-grid">
-                    <button class="order-btn first" onclick="onChoosePickOrder(true)">
-                        <div class="order-icon">⚡</div>
-                        <div class="order-label">먼저 픽</div>
-                        <div class="order-desc">내가 1번째 픽으로 시작</div>
-                    </button>
-                    <button class="order-btn last" onclick="onChoosePickOrder(false)">
-                        <div class="order-icon">🛡️</div>
-                        <div class="order-label">나중 픽</div>
-                        <div class="order-desc">상대가 먼저 픽, 내가 마지막 픽</div>
-                    </button>
-                </div>
+                        <div class="order-grid">
+                            <button class="order-btn first" onclick="onChoosePickOrder(true)">
+                                <div class="order-icon">⚡</div>
+                                <div class="order-label">먼저 픽</div>
+                                <div class="order-desc">내가 1번째<br>픽으로 시작</div>
+                            </button>
+                            <button class="order-btn last" onclick="onChoosePickOrder(false)">
+                                <div class="order-icon">🛡️</div>
+                                <div class="order-label">나중 픽</div>
+                                <div class="order-desc">상대가 먼저,<br>내가 마지막</div>
+                            </button>
+                        </div>
 
-                <div class="order-explanation">
-                    <strong>📋 1-2-2-2-1 드래프트 순서</strong>
-                    <div class="sequence">A → B B → A A → B B → A</div>
-                    <div style="margin-top:6px;">
-                        총 8픽. "먼저 픽(A)"이 1번과 마지막을, 중간은 2명씩 번갈아 픽합니다.
+                        <div class="order-explanation">
+                            <strong>📋 1-2-2-2-1 순서</strong>
+                            <div class="sequence">A→BB→AA→BB→A</div>
+                            <div style="margin-top:6px;">
+                                총 8픽. "먼저 픽(A)"이 1번과 마지막,<br>중간은 2명씩 번갈아 픽합니다.
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- 진 사람 대기 화면 -->
-            <div class="card" id="loserWaiting" style="display:none;">
-                <div class="status-box waiting">
-                    <div class="status-icon">⏳</div>
-                    <div class="status-title">상대 팀장이 픽 순서를 선택 중입니다</div>
-                    <div class="status-desc">잠시만 기다려주세요. 결정되면 자동으로 다음 단계로 진행됩니다.</div>
+                    <!-- 진 사람 대기 화면 -->
+                    <div class="card" id="loserWaiting" style="display:none;">
+                        <div class="status-box waiting" style="margin-top:0;">
+                            <div class="status-icon">⏳</div>
+                            <div class="status-title" style="font-size:14px;">상대 팀장이<br>픽 순서를 선택 중...</div>
+                            <div class="status-desc" style="font-size:12px; margin-top:6px;">결정되면 자동으로<br>다음 단계로 진행됩니다.</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
