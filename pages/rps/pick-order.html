@@ -112,6 +112,18 @@
             <h2 style="margin-top:20px;">⚡ 픽 순서 선택</h2>
             <p style="text-align:center;">먼저 픽할지, 나중에 픽할지 선택하세요.</p>
 
+            <!-- 단계 C 추가: 드래프트 멤버 미리보기 -->
+            <div class="member-preview-section">
+                <div class="preview-section-title">📋 드래프트 멤버 (<span id="memberCount">8</span>명)</div>
+                <div id="memberPreviewList" class="member-preview-list"></div>
+            </div>
+
+            <!-- 단계 C 추가: 1팀 / 2팀 박스 미리보기 -->
+            <div class="member-preview-section" style="margin-top:16px;">
+                <div class="preview-section-title">👥 팀 구성 (드래프트 시작 전)</div>
+                <div id="teamPreview" class="teams-display" style="margin-top:8px;"></div>
+            </div>
+
             <div class="order-grid">
                 <button class="order-btn first" onclick="onChoosePickOrder(true)">
                     <div class="order-icon">⚡</div>
@@ -193,6 +205,10 @@
             '먼저 픽할지, 나중에 픽할지 선택하세요.'
         );
 
+        // 단계 C 추가: 멤버 + 팀 박스 미리보기 렌더링
+        renderMemberPreview(currentRoom);
+        renderTeamPreview(currentRoom);
+
         // 실시간 구독 (상대가 뭔가 바꾸거나 방 상태 바뀌면 자동 라우팅)
         subscribeRealtime({
             onRoom: (payload) => {
@@ -211,6 +227,43 @@
         hide('loadingView');
         show('orderView');
     })();
+
+    // 단계 C 추가: 멤버 8명 명단 박스 렌더링
+    function renderMemberPreview(room) {
+        const list = $('memberPreviewList');
+        const countEl = $('memberCount');
+        if (!list) return;
+        const members = Array.isArray(room.members) ? room.members : [];
+        if (countEl) countEl.innerText = members.length;
+        if (members.length === 0) {
+            list.innerHTML = '<div class="member-preview-row" style="color:var(--text-muted); font-style:italic;">멤버 정보가 없습니다.</div>';
+            return;
+        }
+        list.innerHTML = members.map(m =>
+            `<div class="member-preview-row">${escapeHtml(m)}</div>`
+        ).join('');
+    }
+
+    // 단계 C 추가: 1팀 / 2팀 박스 미리보기 (팀장만, 빈 슬롯 4개)
+    function renderTeamPreview(room) {
+        const wrap = $('teamPreview');
+        if (!wrap) return;
+        const l1 = escapeHtml(room.leader1_name || '(미정)');
+        const l2 = escapeHtml(room.leader2_name || '(미정)');
+        const emptySlots = '<div class="team-member empty">(픽 대기)</div>'.repeat(4);
+        wrap.innerHTML = `
+            <div class="team-box team1">
+                <div class="team-title">🏆 1팀</div>
+                <div class="team-member leader">${l1}</div>
+                ${emptySlots}
+            </div>
+            <div class="team-box team2">
+                <div class="team-title">🏆 2팀</div>
+                <div class="team-member leader">${l2}</div>
+                ${emptySlots}
+            </div>
+        `;
+    }
 
     // ========================================================================
     // 픽 순서 선택
