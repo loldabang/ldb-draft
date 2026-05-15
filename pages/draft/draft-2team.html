@@ -162,6 +162,60 @@
             font-weight: 600;
             margin-top: 4px;
         }
+
+        /* 단계 D 추가: 후보로 선택된 멤버 (확정 전 상태) */
+        .member-btn.is-selected {
+            border-color: var(--warning);
+            border-width: 3px;
+            background: linear-gradient(135deg, #fff7ed, #ffedd5);
+            color: #9a3412;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(245, 158, 11, 0.28);
+        }
+        .member-btn.is-selected::after {
+            content: '✓ 선택됨';
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            margin-top: 4px;
+            color: var(--warning);
+            letter-spacing: 0.5px;
+        }
+
+        /* 단계 D 추가: 확정 버튼 영역 */
+        .confirm-pick-area {
+            margin-top: 18px;
+            padding: 14px;
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            border: 2px dashed var(--warning);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .confirm-pick-area .confirm-pick-label {
+            font-size: 13px;
+            color: #78350f;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .confirm-pick-area .confirm-pick-label .pick-name {
+            color: #92400e;
+            font-size: 15px;
+            font-weight: 800;
+        }
+        #confirmPickBtn {
+            width: 100%;
+            padding: 14px;
+            font-size: 15px;
+            background: var(--warning);
+            color: #fff;
+        }
+        #confirmPickBtn:hover:not(:disabled) {
+            background: #ea580c;
+        }
+        #confirmPickBtn:disabled {
+            background: #d1d5db;
+            color: #6b7280;
+        }
     </style>
 </head>
 <body>
@@ -188,6 +242,12 @@
                 <div class="members-section">
                     <div class="section-title">📋 픽 가능한 멤버</div>
                     <div id="membersGrid" class="members-grid"></div>
+                </div>
+
+                <!-- 단계 D 추가: 확정 버튼 영역 (본인 차례일 때만 표시) -->
+                <div id="confirmPickArea" class="confirm-pick-area" style="display:none;">
+                    <div class="confirm-pick-label" id="confirmPickLabel">멤버를 선택해주세요</div>
+                    <button class="btn" id="confirmPickBtn" disabled onclick="onConfirmPick()">✅ 픽 확정</button>
                 </div>
             </div>
 
@@ -217,6 +277,9 @@
     let currentRoom = null;
     let currentDrafts = [];
     let isProcessing = false;
+
+    // 단계 D 추가: 후보로 선택한 멤버 (확정 전, 자유롭게 변경 가능)
+    let pendingPick = null;
 
     (async function init() {
         const v = validateUrlParams();
@@ -282,18 +345,53 @@
     })();
 
     // ========================================================================
-    // 픽 클릭 핸들러
+    // 단계 D 변경: 멤버 클릭 = 후보 선택 (로컬, 자유 변경 가능)
     // ========================================================================
-    async function onPickClick(memberName) {
+    function onMemberSelect(memberName) {
+        // 본인 차례일 때만 작동
+        if (!_isMyTurnNow()) return;
+        // 이미 픽된 멤버라면 무시
+        const pickedMap = _buildPickedMap();
+        if (pickedMap[memberName]) return;
+
+        if (pendingPick === memberName) {
+            // 같은 멤버 다시 클릭 → 해제
+            pendingPick = null;
+        } else {
+            // 다른 멤버 클릭 → 후보 교체
+            pendingPick = memberName;
+        }
+        renderDraft();
+    }
+
+    // ========================================================================
+    // 단계 D 추가: [확정] 버튼 — 실제 픽 RPC 호출
+    // ========================================================================
+    async function onConfirmPick() {
         if (isProcessing) return;
+        if (!pendingPick) return;
+        if (!_isMyTurnNow()) return;
+
+        // 이중 확인: 그 사이에 상대가 같은 멤버를 픽해갔는지
+        const pickedMap = _buildPickedMap();
+        if (pickedMap[pendingPick]) {
+            showToast('이미 픽된 멤버입니다. 다른 멤버를 골라주세요.');
+            pendingPick = null;
+            renderDraft();
+            return;
+        }
+
         isProcessing = true;
+        const btn = $('confirmPickBtn');
+        if (btn) { btn.disabled = true; btn.innerText = '⏳ 확정 중...'; }
 
         try {
             const client = initSupabase();
+            const memberToPick = pendingPick;
             const { data, error } = await client.rpc('make_draft_pick', {
                 p_room_code: ROOM_CODE,
                 p_leader_token: TOKEN,
-                p_member_name: memberName
+                p_member_name: memberToPick
             });
             if (error) {
                 showToast('오류: ' + error.message);
@@ -303,7 +401,8 @@
                 showToast(data[0].message || '픽 실패');
                 return;
             }
-            showToast(memberName + ' 픽 완료!');
+            showToast(memberToPick + ' 픽 완료!');
+            pendingPick = null;
             currentDrafts = await loadDrafts();
             renderDraft();
         } catch (e) {
@@ -311,7 +410,25 @@
             console.error(e);
         } finally {
             isProcessing = false;
+            const btn2 = $('confirmPickBtn');
+            if (btn2) btn2.innerText = '✅ 픽 확정';
         }
+    }
+
+    // ── 단계 D 헬퍼들 ───────────────────────────────────────────────────────
+    function _buildPickedMap() {
+        const map = {};
+        currentDrafts.forEach(d => { map[d.picked_member] = d.picker; });
+        return map;
+    }
+    function _isMyTurnNow() {
+        const pickCount = currentDrafts.length;
+        if (pickCount >= TOTAL_PICKS) return false;
+        const pickerA = currentRoom.pick_order;
+        const pickerB = pickerA === 'leader1' ? 'leader2' : 'leader1';
+        const slot = PICK_ORDER[pickCount];
+        const expected = slot === 'A' ? pickerA : pickerB;
+        return expected === ROLE;
     }
 
     // ========================================================================
@@ -334,6 +451,14 @@
         const isMyTurn = expectedPicker === ROLE;
         const isDone = pickCount >= TOTAL_PICKS;
 
+        // 단계 D: pendingPick이 invalid해진 경우 자동 해제
+        if (pendingPick) {
+            const pickedMap = _buildPickedMap();
+            if (pickedMap[pendingPick] || !isMyTurn) {
+                pendingPick = null;
+            }
+        }
+
         // 상태 박스
         const statusBox = $('draftStatusBox');
         const currentText = $('currentText');
@@ -355,8 +480,33 @@
         // 멤버 그리드
         renderMembers(isMyTurn);
 
+        // 단계 D 추가: 확정 영역 갱신
+        renderConfirmArea(isMyTurn);
+
         // 팀 구성
         renderTeams();
+    }
+
+    // 단계 D 추가: 확정 영역 갱신
+    function renderConfirmArea(isMyTurn) {
+        const area = $('confirmPickArea');
+        const label = $('confirmPickLabel');
+        const btn = $('confirmPickBtn');
+        if (!area || !label || !btn) return;
+
+        if (!isMyTurn) {
+            area.style.display = 'none';
+            return;
+        }
+
+        area.style.display = 'block';
+        if (pendingPick) {
+            label.innerHTML = `선택한 멤버: <span class="pick-name">${escapeHtml(pendingPick)}</span>`;
+            btn.disabled = isProcessing;
+        } else {
+            label.innerText = '💡 멤버를 선택한 뒤 [픽 확정]을 눌러주세요';
+            btn.disabled = true;
+        }
     }
 
     function renderProgress(pickCount, pickerA, pickerB) {
@@ -412,16 +562,20 @@
                 btn.classList.add('is-leader');
                 if (isMine) btn.classList.add('is-mine');
                 const teamLabel = m === leader1Name ? '1팀 팀장' : '2팀 팀장';
-                btn.innerHTML = `👑 ${m}<span class="leader-tag">${teamLabel}</span>`;
+                btn.innerHTML = `👑 ${escapeHtml(m)}<span class="leader-tag">${teamLabel}</span>`;
                 btn.disabled = true;
             } else if (pickedBy) {
                 btn.classList.add(`picked-${pickedBy}`);
                 const teamLabel = pickedBy === 'leader1' ? '1팀' : '2팀';
-                btn.innerHTML = `${m}<span class="pick-tag">→ ${teamLabel}</span>`;
+                btn.innerHTML = `${escapeHtml(m)}<span class="pick-tag">→ ${teamLabel}</span>`;
                 btn.disabled = true;
             } else if (isMyTurn) {
+                // 단계 D: 클릭 시 즉시 확정 X → 후보 선택만
                 btn.innerText = m;
-                btn.onclick = () => onPickClick(m);
+                if (pendingPick === m) {
+                    btn.classList.add('is-selected');
+                }
+                btn.onclick = () => onMemberSelect(m);
             } else {
                 btn.innerText = m;
                 btn.disabled = true;
@@ -442,11 +596,11 @@
         $('teamsDisplay').innerHTML = `
             <div class="team-box team1">
                 <div class="team-title">🏆 1팀 (${team1Members.length}명)</div>
-                ${team1Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${m}</div>`).join('')}
+                ${team1Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${escapeHtml(m)}</div>`).join('')}
             </div>
             <div class="team-box team2">
                 <div class="team-title">🏆 2팀 (${team2Members.length}명)</div>
-                ${team2Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${m}</div>`).join('')}
+                ${team2Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${escapeHtml(m)}</div>`).join('')}
             </div>
         `;
     }
