@@ -415,16 +415,45 @@ p {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 14px;
-    align-items: start;
+    align-items: stretch;
 }
 
-.triple-grid > .card {
+.triple-grid > .card,
+.triple-grid > div > .card {
     margin: 0;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* 가운데 (split-grid-right): 위/아래 두 카드를 균등 stretch */
+.triple-grid > .split-grid-right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100%;
+}
+.triple-grid > .split-grid-right > .card {
+    flex: 1;
+    height: auto;
+}
+
+/* 오른쪽 컨트롤 칸도 stretch */
+.triple-grid > div:not(.split-grid-right) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.triple-grid > div:not(.split-grid-right) > .card {
+    height: 100%;
 }
 
 @media (max-width: 960px) {
     .triple-grid {
         grid-template-columns: 1fr;
+    }
+    .triple-grid > .card,
+    .triple-grid > div > .card {
+        height: auto;
     }
 }
 
