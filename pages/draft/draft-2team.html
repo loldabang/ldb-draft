@@ -219,7 +219,7 @@
     </style>
 </head>
 <body>
-    <div class="page-wrap">
+    <div class="page-wrap" style="max-width: 1000px;">
         <!-- 헤더 -->
         <div id="headerArea"></div>
 
@@ -231,30 +231,39 @@
 
         <!-- 드래프트 본문 -->
         <div id="draftView" style="display:none;">
-            <!-- 현재 상태 + 진행 -->
+            <!-- 상태 + 진행 -->
             <div class="card">
                 <div id="draftStatusBox" class="draft-status">
                     <div class="current-text" id="currentText">로딩 중...</div>
                     <div class="draft-progress" id="draftProgress"></div>
                 </div>
 
-                <!-- 멤버 선택 -->
-                <div class="members-section">
-                    <div class="section-title">📋 픽 가능한 멤버</div>
-                    <div id="membersGrid" class="members-grid"></div>
-                </div>
-
-                <!-- 단계 D 추가: 확정 버튼 영역 (본인 차례일 때만 표시) -->
+                <!-- 단계 D/E: 확정 버튼 영역 (본인 차례일 때만) -->
                 <div id="confirmPickArea" class="confirm-pick-area" style="display:none;">
                     <div class="confirm-pick-label" id="confirmPickLabel">멤버를 선택해주세요</div>
                     <button class="btn" id="confirmPickBtn" disabled onclick="onConfirmPick()">✅ 픽 확정</button>
                 </div>
             </div>
 
-            <!-- 팀 구성 -->
-            <div class="card">
-                <h2 style="font-size:15px; margin-bottom:12px;">🏆 현재 팀 구성</h2>
-                <div id="teamsDisplay" class="teams-display"></div>
+            <!-- 2단 그리드: 왼쪽 멤버 / 오른쪽 양 팀 -->
+            <div class="split-grid">
+                <!-- 왼쪽: 픽 가능한 멤버 -->
+                <div class="card">
+                    <div class="section-title">📋 픽 가능한 멤버</div>
+                    <div id="membersGrid" class="members-grid"></div>
+                </div>
+
+                <!-- 오른쪽: 내 팀 (위) / 상대 팀 (아래) -->
+                <div class="split-grid-right">
+                    <div class="card">
+                        <div class="section-title" id="myTeamHeader">🏆 내 팀</div>
+                        <div id="myTeamBox"></div>
+                    </div>
+                    <div class="card">
+                        <div class="section-title" id="otherTeamHeader">🤝 상대 팀</div>
+                        <div id="otherTeamBox"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -278,8 +287,8 @@
     let currentDrafts = [];
     let isProcessing = false;
 
-    // 단계 D 추가: 후보로 선택한 멤버 (확정 전, 자유롭게 변경 가능)
-    let pendingPick = null;
+    // 단계 E 변경: 후보 멤버 목록 (배열, 1명 또는 2명. 본인 연속 픽 수에 따라)
+    let pendingPicks = [];
 
     (async function init() {
         const v = validateUrlParams();
@@ -345,38 +354,43 @@
     })();
 
     // ========================================================================
-    // 단계 D 변경: 멤버 클릭 = 후보 선택 (로컬, 자유 변경 가능)
+    // 단계 E 변경: 다중 후보 선택 (1-2명 차례에 맞게)
     // ========================================================================
     function onMemberSelect(memberName) {
-        // 본인 차례일 때만 작동
         if (!_isMyTurnNow()) return;
-        // 이미 픽된 멤버라면 무시
         const pickedMap = _buildPickedMap();
         if (pickedMap[memberName]) return;
 
-        if (pendingPick === memberName) {
-            // 같은 멤버 다시 클릭 → 해제
-            pendingPick = null;
+        const allowed = _getMyAllowedPicks();
+        const idx = pendingPicks.indexOf(memberName);
+
+        if (idx !== -1) {
+            // 이미 선택된 멤버 → 해제
+            pendingPicks.splice(idx, 1);
+        } else if (pendingPicks.length < allowed) {
+            // 새로 추가
+            pendingPicks.push(memberName);
         } else {
-            // 다른 멤버 클릭 → 후보 교체
-            pendingPick = memberName;
+            showToast(`이번 차례는 ${allowed}명까지만 선택 가능합니다.\n다른 선택을 해제하고 골라주세요.`);
+            return;
         }
         renderDraft();
     }
 
     // ========================================================================
-    // 단계 D 추가: [확정] 버튼 — 실제 픽 RPC 호출
+    // 단계 E: [확정] 버튼 — 선택한 멤버들을 순서대로 RPC 호출
     // ========================================================================
     async function onConfirmPick() {
         if (isProcessing) return;
-        if (!pendingPick) return;
+        if (pendingPicks.length === 0) return;
         if (!_isMyTurnNow()) return;
 
-        // 이중 확인: 그 사이에 상대가 같은 멤버를 픽해갔는지
+        // 이중 확인: 후보들이 그 사이에 이미 픽됐는지
         const pickedMap = _buildPickedMap();
-        if (pickedMap[pendingPick]) {
-            showToast('이미 픽된 멤버입니다. 다른 멤버를 골라주세요.');
-            pendingPick = null;
+        const stillAvailable = pendingPicks.filter(m => !pickedMap[m]);
+        if (stillAvailable.length < pendingPicks.length) {
+            showToast('일부 멤버가 이미 픽되었습니다. 다시 선택해주세요.');
+            pendingPicks = stillAvailable;
             renderDraft();
             return;
         }
@@ -385,37 +399,46 @@
         const btn = $('confirmPickBtn');
         if (btn) { btn.disabled = true; btn.innerText = '⏳ 확정 중...'; }
 
+        const toSubmit = [...pendingPicks];
+        let successCount = 0;
+
         try {
             const client = initSupabase();
-            const memberToPick = pendingPick;
-            const { data, error } = await client.rpc('make_draft_pick', {
-                p_room_code: ROOM_CODE,
-                p_leader_token: TOKEN,
-                p_member_name: memberToPick
-            });
-            if (error) {
-                showToast('오류: ' + error.message);
-                return;
+            for (let i = 0; i < toSubmit.length; i++) {
+                const m = toSubmit[i];
+                const { data, error } = await client.rpc('make_draft_pick', {
+                    p_room_code: ROOM_CODE,
+                    p_leader_token: TOKEN,
+                    p_member_name: m
+                });
+                if (error) {
+                    showToast('오류: ' + error.message);
+                    break;
+                }
+                if (data && data[0] && !data[0].success) {
+                    showToast(data[0].message || '픽 실패');
+                    break;
+                }
+                successCount++;
             }
-            if (data && data[0] && !data[0].success) {
-                showToast(data[0].message || '픽 실패');
-                return;
-            }
-            showToast(memberToPick + ' 픽 완료!');
-            pendingPick = null;
-            currentDrafts = await loadDrafts();
-            renderDraft();
         } catch (e) {
             showToast('네트워크 오류');
             console.error(e);
-        } finally {
-            isProcessing = false;
-            const btn2 = $('confirmPickBtn');
-            if (btn2) btn2.innerText = '✅ 픽 확정';
         }
+
+        if (successCount > 0) {
+            const submittedNames = toSubmit.slice(0, successCount).join(', ');
+            showToast(submittedNames + ' 픽 완료!');
+        }
+        pendingPicks = [];
+        currentDrafts = await loadDrafts();
+        isProcessing = false;
+        const btn2 = $('confirmPickBtn');
+        if (btn2) btn2.innerText = '✅ 픽 확정';
+        renderDraft();
     }
 
-    // ── 단계 D 헬퍼들 ───────────────────────────────────────────────────────
+    // ── 단계 E 헬퍼들 ───────────────────────────────────────────────────────
     function _buildPickedMap() {
         const map = {};
         currentDrafts.forEach(d => { map[d.picked_member] = d.picker; });
@@ -429,6 +452,21 @@
         const slot = PICK_ORDER[pickCount];
         const expected = slot === 'A' ? pickerA : pickerB;
         return expected === ROLE;
+    }
+    // 본인 차례에서 연속으로 픽할 수 있는 수 (1-2-2-2-1 패턴 기반)
+    function _getMyAllowedPicks() {
+        const pickCount = currentDrafts.length;
+        if (pickCount >= TOTAL_PICKS) return 0;
+        const pickerA = currentRoom.pick_order;
+        const pickerB = pickerA === 'leader1' ? 'leader2' : 'leader1';
+        let count = 0;
+        for (let i = pickCount; i < TOTAL_PICKS; i++) {
+            const slot = PICK_ORDER[i];
+            const expected = slot === 'A' ? pickerA : pickerB;
+            if (expected !== ROLE) break;
+            count++;
+        }
+        return count;
     }
 
     // ========================================================================
@@ -451,11 +489,13 @@
         const isMyTurn = expectedPicker === ROLE;
         const isDone = pickCount >= TOTAL_PICKS;
 
-        // 단계 D: pendingPick이 invalid해진 경우 자동 해제
-        if (pendingPick) {
+        // 단계 E: pendingPicks 중 invalid한 항목 자동 제거
+        if (pendingPicks.length > 0) {
             const pickedMap = _buildPickedMap();
-            if (pickedMap[pendingPick] || !isMyTurn) {
-                pendingPick = null;
+            if (!isMyTurn) {
+                pendingPicks = [];
+            } else {
+                pendingPicks = pendingPicks.filter(m => !pickedMap[m]);
             }
         }
 
@@ -487,7 +527,7 @@
         renderTeams();
     }
 
-    // 단계 D 추가: 확정 영역 갱신
+    // 단계 E: 확정 영역 갱신 (다중 픽 지원)
     function renderConfirmArea(isMyTurn) {
         const area = $('confirmPickArea');
         const label = $('confirmPickLabel');
@@ -500,12 +540,16 @@
         }
 
         area.style.display = 'block';
-        if (pendingPick) {
-            label.innerHTML = `선택한 멤버: <span class="pick-name">${escapeHtml(pendingPick)}</span>`;
-            btn.disabled = isProcessing;
-        } else {
-            label.innerText = '💡 멤버를 선택한 뒤 [픽 확정]을 눌러주세요';
+        const allowed = _getMyAllowedPicks();
+
+        if (pendingPicks.length === 0) {
+            const hint = allowed > 1 ? `${allowed}명 동시 선택 가능` : '';
+            label.innerText = `💡 멤버를 선택한 뒤 [픽 확정]을 눌러주세요${hint ? ' (' + hint + ')' : ''}`;
             btn.disabled = true;
+        } else {
+            const escapedNames = pendingPicks.map(escapeHtml).join(', ');
+            label.innerHTML = `선택한 멤버 (${pendingPicks.length}/${allowed}): <span class="pick-name">${escapedNames}</span>`;
+            btn.disabled = isProcessing;
         }
     }
 
@@ -570,10 +614,19 @@
                 btn.innerHTML = `${escapeHtml(m)}<span class="pick-tag">→ ${teamLabel}</span>`;
                 btn.disabled = true;
             } else if (isMyTurn) {
-                // 단계 D: 클릭 시 즉시 확정 X → 후보 선택만
+                // 단계 E: 다중 선택 지원
                 btn.innerText = m;
-                if (pendingPick === m) {
+                btn.style.position = 'relative';
+                const orderIdx = pendingPicks.indexOf(m);
+                if (orderIdx !== -1) {
                     btn.classList.add('is-selected');
+                    // 다중 선택일 때만 순서 뱃지 표시
+                    if (_getMyAllowedPicks() > 1) {
+                        const badge = document.createElement('span');
+                        badge.style.cssText = 'position:absolute; top:4px; right:6px; background:var(--warning); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; box-shadow:0 2px 6px rgba(0,0,0,0.15);';
+                        badge.innerText = String(orderIdx + 1);
+                        btn.appendChild(badge);
+                    }
                 }
                 btn.onclick = () => onMemberSelect(m);
             } else {
@@ -584,25 +637,36 @@
         });
     }
 
+    // 단계 E: 새 레이아웃 — 내 팀 (위) / 상대 팀 (아래)
     function renderTeams() {
-        const team1Members = [currentRoom.leader1_name || '(미정)'];
-        const team2Members = [currentRoom.leader2_name || '(미정)'];
+        // ROLE 기준으로 내/상대 결정
+        const myTeamLabel = ROLE === 'leader1' ? '1팀' : '2팀';
+        const otherTeamLabel = ROLE === 'leader1' ? '2팀' : '1팀';
+        const myLeaderName = ROLE === 'leader1' ? currentRoom.leader1_name : currentRoom.leader2_name;
+        const otherLeaderName = ROLE === 'leader1' ? currentRoom.leader2_name : currentRoom.leader1_name;
+        const myRole = ROLE; // 'leader1' or 'leader2'
+        const otherRole = ROLE === 'leader1' ? 'leader2' : 'leader1';
 
-        currentDrafts.forEach(d => {
-            if (d.picker === 'leader1') team1Members.push(d.picked_member);
-            else if (d.picker === 'leader2') team2Members.push(d.picked_member);
-        });
+        const myPicks = currentDrafts.filter(d => d.picker === myRole).map(d => d.picked_member);
+        const otherPicks = currentDrafts.filter(d => d.picker === otherRole).map(d => d.picked_member);
 
-        $('teamsDisplay').innerHTML = `
-            <div class="team-box team1">
-                <div class="team-title">🏆 1팀 (${team1Members.length}명)</div>
-                ${team1Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${escapeHtml(m)}</div>`).join('')}
-            </div>
-            <div class="team-box team2">
-                <div class="team-title">🏆 2팀 (${team2Members.length}명)</div>
-                ${team2Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${escapeHtml(m)}</div>`).join('')}
-            </div>
-        `;
+        $('myTeamHeader').innerText = `🏆 내 팀 (${myTeamLabel}) — ${1 + myPicks.length}명`;
+        $('otherTeamHeader').innerText = `🤝 상대 팀 (${otherTeamLabel}) — ${1 + otherPicks.length}명`;
+
+        const buildBox = (leaderName, picks) => {
+            let html = `<div class="team-vbox-row leader">👑 ${escapeHtml(leaderName || '(미정)')}</div>`;
+            for (let i = 0; i < 4; i++) {
+                if (i < picks.length) {
+                    html += `<div class="team-vbox-row">${escapeHtml(picks[i])}</div>`;
+                } else {
+                    html += `<div class="team-vbox-row empty">(픽 대기)</div>`;
+                }
+            }
+            return html;
+        };
+
+        $('myTeamBox').innerHTML = buildBox(myLeaderName, myPicks);
+        $('otherTeamBox').innerHTML = buildBox(otherLeaderName, otherPicks);
     }
     </script>
 </body>
