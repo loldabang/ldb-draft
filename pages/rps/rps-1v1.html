@@ -420,6 +420,28 @@
                 if (btn) btn.innerText = '✅ 확정';
                 return;
             }
+            // 단계 G: RPC 응답으로 비김 즉시 감지 (SQL이 즉시 reset해서 realtime 너무 빠름)
+            const respWinner = data && data[0] && data[0].winner;
+            if (respWinner === 'draw') {
+                showToast('🤝 비겼습니다! 다시 시작합니다.', 2800);
+                // 화면도 즉시 안내 (잠시)
+                const wb = $('waitingBox');
+                if (wb) {
+                    show('waitingBox');
+                    const wd = $('waitingDesc');
+                    if (wd) wd.innerHTML = '🤝 <strong>비겼습니다!</strong> 잠시 후 자동으로 다시 시작됩니다...';
+                }
+                // 1.8초 후 UI를 자연스럽게 리셋
+                setTimeout(() => {
+                    pendingChoice = null;
+                    clearSelected();
+                    document.querySelectorAll('.rps-btn').forEach(b => b.classList.remove('pending'));
+                    const area = $('confirmRpsArea');
+                    if (area) area.style.display = 'none';
+                    hide('waitingBox');
+                    enableButtons();
+                }, 1800);
+            }
             // 성공: pendingChoice 정리 후 renderRps로 후속 UI
             pendingChoice = null;
             await loadRps();
