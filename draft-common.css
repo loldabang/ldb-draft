@@ -340,6 +340,45 @@ p {
     font-style: italic;
 }
 
+/* ============================================================================
+   단계 C 추가: pick-order.html의 멤버 미리보기 스타일
+   ============================================================================ */
+.preview-section-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-top: 18px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.member-preview-section {
+    /* 카드 내부에서 섹션 구분용. 별도 박스는 아님 */
+}
+
+.member-preview-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-top: 6px;
+    margin-bottom: 8px;
+}
+
+.member-preview-row {
+    padding: 9px 14px;
+    background: #f9fafb;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-main);
+    transition: background 0.15s;
+}
+
+.member-preview-row:hover {
+    background: #f3f4f6;
+}
+
 /* ===== 반응형 (작은 화면) ===== */
 @media (max-width: 480px) {
     body {
