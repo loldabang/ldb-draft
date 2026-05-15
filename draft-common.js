@@ -190,11 +190,10 @@ function routeByStatus(room, rpsGames) {
     const rps2 = rpsGames.find(r => r.round === 2);
 
     if (status === 'waiting' || status === 'rps1') {
-        // 1차 가위바위보 단계: 결과 났고 본인이 이긴 경우는 pick-order로
+        // 단계 E 변경: 가위바위보 결과 났으면 — 이긴 사람도, 진 사람도 둘 다 pick-order로
+        // (진 사람은 read-only로 같은 화면을 봄)
         if (rps1 && rps1.winner && rps1.winner !== 'draw') {
-            if (rps1.winner === ROLE) return { page: 'pick-order' };
-            // 진 사람은 rps 페이지에서 대기
-            return { page: 'rps', extras: { round: 1 } };
+            return { page: 'pick-order' };
         }
         return { page: 'rps', extras: { round: 1 } };
     }
