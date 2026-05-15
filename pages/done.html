@@ -151,7 +151,19 @@
         subscribeRealtime({
             onRoom: (payload) => {
                 if (payload.eventType === 'DELETE') {
-                    showFatalError('관리자가 방을 닫았습니다. 수고하셨습니다!');
+                    // 단계 G: admin이 정상적으로 방을 정리한 경우 (드래프트 완료 후)
+                    document.body.innerHTML = `
+                        <div class="page-wrap" style="display:flex; align-items:center; justify-content:center; min-height:80vh;">
+                            <div class="card" style="text-align:center; padding:40px 32px;">
+                                <div style="font-size:64px; margin-bottom:12px;">🎉</div>
+                                <h1 style="border-bottom:none; padding-bottom:0; margin-bottom:8px;">수고하셨습니다!</h1>
+                                <p style="font-size:13px; color:var(--text-muted);">
+                                    드래프트가 완료되었습니다.<br>
+                                    이 창은 닫으셔도 됩니다.
+                                </p>
+                            </div>
+                        </div>
+                    `;
                     return;
                 }
                 currentRoom = payload.new;
