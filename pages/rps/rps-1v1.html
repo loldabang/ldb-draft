@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>가위바위보 - 롤다방 내전 드래프트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../draft-common.css">
+    <style>
+        /* 페이지 전용 스타일 */
+        .rps-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 8px;
+        }
+        .rps-btn {
+            background: #fff;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Pretendard', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .rps-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .rps-btn.selected {
+            background: linear-gradient(135deg, #fff8f3, #ffeed5);
+            border-color: var(--warning);
+            box-shadow: 0 0 0 4px rgba(245, 124, 0, 0.15);
+        }
+        .rps-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .rps-btn.selected:disabled {
+            opacity: 1;
+        }
+        .rps-emoji {
+            font-size: 56px;
+            line-height: 1;
+        }
+        .rps-label {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        /* 결과 공개 애니메이션 */
+        .result-display {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: center;
+            margin-top: 16px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+            border-radius: 12px;
+        }
+        .result-side {
+            text-align: center;
+        }
+        .result-side .name {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .result-side .choice {
+            font-size: 56px;
+            line-height: 1;
+        }
+        .result-side .choice-label {
+            font-size: 13px;
+            margin-top: 6px;
+            color: var(--text-muted);
+        }
+        .result-side.winner {
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .result-side.winner .name {
+            color: var(--success);
+        }
+        .result-side.loser {
+            opacity: 0.6;
+        }
+        .vs-badge {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-muted);
+        }
+
+        .round-banner {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #fef3c7;
+            color: #92400e;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrap">
+        <!-- 헤더 (공통) -->
+        <div id="headerArea"></div>
+
+        <!-- 로딩 -->
+        <div id="loadingView" class="card loading">
+            <div class="spinner"></div>
+            <div class="loading-text">방 정보 불러오는 중...</div>
+        </div>
+
+        <!-- 가위바위보 본문 -->
+        <div id="rpsView" class="card" style="display:none;">
+            <div style="text-align:center;">
+                <span class="round-banner" id="roundBanner"></span>
+            </div>
+            <h2 id="rpsTitle">🎯 가위바위보</h2>
+            <p id="rpsDesc" style="text-align:center; margin-bottom:16px;"></p>
+
+            <div class="rps-container">
+                <button class="rps-btn" data-choice="rock" onclick="onRpsClick('rock')">
+                    <div class="rps-emoji">✊</div>
+                    <div class="rps-label">바위</div>
+                </button>
+                <button class="rps-btn" data-choice="paper" onclick="onRpsClick('paper')">
+                    <div class="rps-emoji">✋</div>
+                    <div class="rps-label">보</div>
+                </button>
+                <button class="rps-btn" data-choice="scissors" onclick="onRpsClick('scissors')">
+                    <div class="rps-emoji">✌️</div>
+                    <div class="rps-label">가위</div>
+                </button>
+            </div>
+
+            <!-- 내 선택 후 대기 -->
+            <div id="waitingBox" class="status-box waiting" style="display:none; margin-top:16px;">
+                <div class="status-icon">⏳</div>
+                <div class="status-title">상대방을 기다리는 중...</div>
+                <div class="status-desc" id="waitingDesc"></div>
+            </div>
+
+            <!-- 결과 공개 -->
+            <div id="resultBox" style="display:none;">
+                <div class="result-display" id="resultDisplay"></div>
+                <div id="afterResultBox" class="status-box" style="margin-top:16px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase + 공통 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../draft-common.js"></script>
+
+    <script>
+    // ========================================================================
+    // rps.html 로직
+    // ========================================================================
+
+    // round를 URL에서 가져옴 (1 또는 2)
+    const ROUND = parseInt(urlParams.get('round') || '1', 10);
+
+    // 상태 저장
+    let currentRoom = null;
+    let currentRps = null;
+    let isProcessing = false;  // 클릭 후 응답 대기 중 중복 클릭 방지
+    let lastWinnerSeen = null; // 결과 공개 애니메이션 후 라우팅 트리거용
+
+    // ========================================================================
+    // 1. 초기화
+    // ========================================================================
+    (async function init() {
+        // URL 파라미터 검증
+        const v = validateUrlParams();
+        if (!v.ok) { showFatalError(v.message); return; }
+
+        // Supabase 초기화
+        if (!initSupabase()) {
+            showFatalError('서버 연결 실패. (Supabase 설정 확인 필요)');
+            return;
+        }
+
+        // round 검증
+        if (ROUND !== 1 && ROUND !== 2) {
+            showFatalError('잘못된 라운드입니다.');
+            return;
+        }
+
+        // 방 정보 로드 + 토큰 검증
+        currentRoom = await validateAndLoadRoom();
+        if (!currentRoom) {
+            showFatalError('존재하지 않거나 만료된 방이거나, 인증 정보가 잘못되었습니다.');
+            return;
+        }
+
+        // 현재 단계 검증 (잘못된 시점에 접근한 경우 main.html로)
+        if (!isCurrentRoundValid()) {
+            goToMain();
+            return;
+        }
+
+        // 가위바위보 정보 로드
+        await loadRps();
+
+        // 화면 셋업
+        setupView();
+
+        // 실시간 구독
+        subscribeRealtime({
+            onRoom: (payload) => {
+                if (payload.eventType === 'DELETE') {
+                    showFatalError('관리자가 방을 닫았습니다.');
+                    return;
+                }
+                currentRoom = payload.new;
+                // 단계가 바뀌면 라우팅
+                if (!isCurrentRoundValid()) {
+                    goToMain();
+                }
+            },
+            onRps: async () => {
+                await loadRps();
+                renderRps();
+            }
+        });
+
+        // 첫 렌더
+        renderRps();
+
+        hide('loadingView');
+        show('rpsView');
+    })();
+
+    // ========================================================================
+    // 2. 유틸: 현재 라운드가 유효한 상태인지
+    // ========================================================================
+    function isCurrentRoundValid() {
+        const s = currentRoom.status;
+        if (ROUND === 1) return s === 'waiting' || s === 'rps1';
+        if (ROUND === 2) return s === 'rps2';
+        return false;
+    }
+
+    async function loadRps() {
+        const games = await loadRpsGames();
+        currentRps = games.find(g => g.round === ROUND) || null;
+    }
+
+    // ========================================================================
+    // 3. 화면 셋업 (라운드별 텍스트)
+    // ========================================================================
+    function setupView() {
+        const stageTitle = ROUND === 1
+            ? '🎯 STEP 1: 가위바위보 (픽 순서)'
+            : '🎯 STEP 3: 가위바위보 (진영)';
+        const stageSubtitle = ROUND === 1
+            ? '이긴 사람이 픽 순서를 정합니다.'
+            : '이긴 사람이 블루/레드 진영을 정합니다.';
+        renderHeader(currentRoom, stageTitle, stageSubtitle);
+
+        $('roundBanner').innerText = ROUND === 1 ? '1차 — 픽 순서' : '2차 — 진영';
+        $('rpsTitle').innerText = ROUND === 1
+            ? '🎯 가위바위보 — 픽 순서 결정'
+            : '🎯 가위바위보 — 진영 결정';
+        $('rpsDesc').innerText = ROUND === 1
+            ? '이긴 사람이 먼저 픽할지 나중에 픽할지 결정합니다.'
+            : '이긴 사람이 블루/레드 진영을 결정합니다.';
+    }
+
+    // ========================================================================
+    // 4. 가위바위보 선택
+    // ========================================================================
+    async function onRpsClick(choice) {
+        if (isProcessing) return;
+        if (!currentRps) {
+            showToast('아직 게임 준비 중입니다. 잠시 후 다시 시도해주세요.');
+            return;
+        }
+        const myField = ROLE === 'leader1' ? currentRps.leader1_choice : currentRps.leader2_choice;
+        if (myField) {
+            showToast('이미 선택했습니다.');
+            return;
+        }
+
+        isProcessing = true;
+        try {
+            const client = initSupabase();
+            const { data, error } = await client.rpc('make_rps_choice', {
+                p_room_code: ROOM_CODE,
+                p_leader_token: TOKEN,
+                p_round: ROUND,
+                p_choice: choice
+            });
+            if (error) {
+                showToast('오류: ' + error.message);
+                return;
+            }
+            if (data && data[0] && !data[0].success) {
+                showToast(data[0].message || '선택 실패');
+                return;
+            }
+            // 성공: 토스트는 표시하지 않음 (선택 자체가 UI에 반영됨)
+            await loadRps();
+            renderRps();
+        } catch (e) {
+            showToast('네트워크 오류');
+            console.error(e);
+        } finally {
+            isProcessing = false;
+        }
+    }
+
+    // ========================================================================
+    // 5. 렌더링
+    // ========================================================================
+    function renderRps() {
+        if (!currentRps) {
+            // 가위바위보 정보 없음 — 그냥 버튼만 보임
+            enableButtons();
+            hide('waitingBox');
+            hide('resultBox');
+            clearSelected();
+            return;
+        }
+
+        const myChoice = ROLE === 'leader1' ? currentRps.leader1_choice : currentRps.leader2_choice;
+        const otherChoice = ROLE === 'leader1' ? currentRps.leader2_choice : currentRps.leader1_choice;
+        const winner = currentRps.winner;
+
+        // 결과 났고 비긴 게 아니면 → 결과 공개 → 잠시 후 라우팅
+        if (winner && winner !== 'draw') {
+            // 새로 본 결과인 경우만 결과 공개 애니메이션
+            const isNewWinnerSeen = lastWinnerSeen !== winner;
+            lastWinnerSeen = winner;
+
+            disableButtons();
+            hide('waitingBox');
+            show('resultBox');
+            renderResultDisplay(myChoice, otherChoice, winner);
+
+            // 결과 공개 후 → 라우팅 (이긴 사람: pick-order/side, 진 사람: 자동 대기)
+            const afterBox = $('afterResultBox');
+            if (winner === ROLE) {
+                afterBox.className = 'status-box success';
+                afterBox.innerHTML = `
+                    <div class="status-icon">🏆</div>
+                    <div class="status-title">승리!</div>
+                    <div class="status-desc">${ROUND === 1 ? '픽 순서' : '진영'}를 선택하러 이동합니다...</div>
+                `;
+                if (isNewWinnerSeen) {
+                    setTimeout(() => {
+                        if (ROUND === 1) goToPickOrder();
+                        else goToSide();
+                    }, 1800);
+                }
+            } else {
+                afterBox.className = 'status-box waiting';
+                afterBox.innerHTML = `
+                    <div class="status-icon">😔</div>
+                    <div class="status-title">패배</div>
+                    <div class="status-desc">상대가 ${ROUND === 1 ? '픽 순서' : '진영'}를 결정 중입니다...</div>
+                `;
+                // 진 사람은 현재 페이지에서 대기.
+                // 방 status가 바뀌면 onRoom 콜백이 main.html로 보냄.
+            }
+            return;
+        }
+
+        // 결과 X (선택 진행 중)
+        hide('resultBox');
+
+        // 내 선택 표시
+        clearSelected();
+        if (myChoice) {
+            const btn = document.querySelector(`.rps-btn[data-choice="${myChoice}"]`);
+            if (btn) btn.classList.add('selected');
+        }
+
+        // 상태에 따른 분기
+        if (myChoice && !otherChoice) {
+            // 내가 골랐고 상대 아직
+            disableButtons();
+            show('waitingBox');
+            $('waitingDesc').innerHTML = `내 선택: <strong>${rpsEmoji(myChoice)} ${rpsKorean(myChoice)}</strong>`;
+        } else if (!myChoice && otherChoice) {
+            // 상대가 골랐고 나 아직 (상대 선택은 안 보여줌)
+            enableButtons();
+            hide('waitingBox');
+        } else if (myChoice && otherChoice && winner === 'draw') {
+            // 비김 → 잠시 후 자동 리셋됨 (서버 함수에서 처리)
+            disableButtons();
+            show('waitingBox');
+            $('waitingDesc').innerText = '비겼습니다! 잠시 후 다시 시작합니다...';
+        } else {
+            // 둘 다 안 골랐음
+            enableButtons();
+            hide('waitingBox');
+        }
+    }
+
+    function renderResultDisplay(myChoice, otherChoice, winner) {
+        const myName = getMyDisplayName(currentRoom);
+        const otherName = getOtherDisplayName(currentRoom);
+        const myWon = winner === ROLE;
+
+        $('resultDisplay').innerHTML = `
+            <div class="result-side ${myWon ? 'winner' : 'loser'}">
+                <div class="name">${myName} (나)</div>
+                <div class="choice">${rpsEmoji(myChoice)}</div>
+                <div class="choice-label">${rpsKorean(myChoice)}</div>
+            </div>
+            <div class="vs-badge">VS</div>
+            <div class="result-side ${myWon ? 'loser' : 'winner'}">
+                <div class="name">${otherName}</div>
+                <div class="choice">${rpsEmoji(otherChoice)}</div>
+                <div class="choice-label">${rpsKorean(otherChoice)}</div>
+            </div>
+        `;
+    }
+
+    function clearSelected() {
+        document.querySelectorAll('.rps-btn').forEach(btn => btn.classList.remove('selected'));
+    }
+    function disableButtons() {
+        document.querySelectorAll('.rps-btn').forEach(btn => btn.disabled = true);
+    }
+    function enableButtons() {
+        document.querySelectorAll('.rps-btn').forEach(btn => btn.disabled = false);
+    }
+    </script>
+</body>
+</html>

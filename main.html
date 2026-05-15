@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>롤다방 내전 드래프트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="draft-common.css">
+</head>
+<body>
+    <div class="page-wrap">
+        <!-- 로딩 -->
+        <div id="loadingView" class="card loading">
+            <div class="spinner"></div>
+            <div class="loading-text">접속 중...</div>
+        </div>
+    </div>
+
+    <!-- Supabase + 공통 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="draft-common.js"></script>
+
+    <script>
+    // ========================================================================
+    // main.html 로직
+    // 1. URL 파라미터 검증
+    // 2. Supabase 초기화
+    // 3. 방 정보 + 가위바위보 게임 정보 로드
+    // 4. 토큰 검증
+    // 5. 방 상태에 따라 적절한 페이지로 리다이렉트
+    // ========================================================================
+    (async function() {
+        // 1. URL 파라미터 검증
+        const validation = validateUrlParams();
+        if (!validation.ok) {
+            showFatalError(validation.message);
+            return;
+        }
+
+        // 2. Supabase 초기화
+        const client = initSupabase();
+        if (!client) {
+            showFatalError('Supabase 설정이 필요합니다. (관리자에게 문의)');
+            return;
+        }
+
+        // 3. 방 로드 + 토큰 검증
+        const room = await validateAndLoadRoom();
+        if (!room) {
+            showFatalError('존재하지 않거나 만료된 방이거나, 인증 정보가 잘못되었습니다.');
+            return;
+        }
+
+        // 4. 가위바위보 게임 정보 로드
+        const rpsGames = await loadRpsGames();
+
+        // 5. 상태에 맞는 페이지로 라우팅
+        const route = routeByStatus(room, rpsGames);
+        goToPageByName(route.page, route.extras);
+    })();
+    </script>
+</body>
+</html>

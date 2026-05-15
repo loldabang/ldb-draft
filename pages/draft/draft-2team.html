@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>드래프트 - 롤다방 내전 드래프트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../draft-common.css">
+    <style>
+        /* 페이지 전용 스타일 */
+        .draft-status {
+            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+            padding: 18px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            text-align: center;
+            transition: background 0.3s;
+        }
+        .draft-status.my-turn {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .draft-status.done {
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+            50% { box-shadow: 0 0 0 14px rgba(245, 158, 11, 0); }
+        }
+        .draft-status .current-text {
+            font-weight: 800;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        /* 진행 슬롯 (1~8) */
+        .draft-progress {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .pick-slot {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+            color: #6b7280;
+            position: relative;
+        }
+        .pick-slot.done.leader1 {
+            background: var(--team1-color);
+            color: #fff;
+        }
+        .pick-slot.done.leader2 {
+            background: var(--team2-color);
+            color: #fff;
+        }
+        .pick-slot.current {
+            background: var(--warning);
+            color: #fff;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        .pick-slot-label {
+            font-size: 9px;
+            margin-top: 2px;
+            color: var(--text-muted);
+            text-align: center;
+            min-height: 12px;
+        }
+        .pick-slot-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        /* 멤버 그리드 */
+        .members-section {
+            margin-top: 20px;
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .members-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        @media (min-width: 600px) {
+            .members-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        .member-btn {
+            padding: 14px 10px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: 'Pretendard', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            color: var(--text-main);
+        }
+        .member-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        }
+        .member-btn:disabled {
+            cursor: not-allowed;
+        }
+        .member-btn.picked-leader1 {
+            background: var(--team1-bg);
+            border-color: var(--team1-color);
+            color: var(--team1-text);
+            opacity: 0.65;
+            position: relative;
+        }
+        .member-btn.picked-leader2 {
+            background: var(--team2-bg);
+            border-color: var(--team2-color);
+            color: var(--team2-text);
+            opacity: 0.65;
+            position: relative;
+        }
+        .member-btn .pick-tag {
+            display: block;
+            font-size: 10px;
+            font-weight: 600;
+            margin-top: 4px;
+            opacity: 0.8;
+        }
+        .member-btn.is-leader {
+            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+            border-style: dashed;
+            cursor: not-allowed;
+            color: var(--text-muted);
+        }
+        .member-btn.is-leader.is-mine {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-color: var(--warning);
+            border-style: solid;
+            color: #92400e;
+        }
+        .member-btn.is-leader .leader-tag {
+            display: block;
+            font-size: 10px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrap">
+        <!-- 헤더 -->
+        <div id="headerArea"></div>
+
+        <!-- 로딩 -->
+        <div id="loadingView" class="card loading">
+            <div class="spinner"></div>
+            <div class="loading-text">드래프트 정보 불러오는 중...</div>
+        </div>
+
+        <!-- 드래프트 본문 -->
+        <div id="draftView" style="display:none;">
+            <!-- 현재 상태 + 진행 -->
+            <div class="card">
+                <div id="draftStatusBox" class="draft-status">
+                    <div class="current-text" id="currentText">로딩 중...</div>
+                    <div class="draft-progress" id="draftProgress"></div>
+                </div>
+
+                <!-- 멤버 선택 -->
+                <div class="members-section">
+                    <div class="section-title">📋 픽 가능한 멤버</div>
+                    <div id="membersGrid" class="members-grid"></div>
+                </div>
+            </div>
+
+            <!-- 팀 구성 -->
+            <div class="card">
+                <h2 style="font-size:15px; margin-bottom:12px;">🏆 현재 팀 구성</h2>
+                <div id="teamsDisplay" class="teams-display"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase + 공통 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../draft-common.js"></script>
+
+    <script>
+    // ========================================================================
+    // draft.html 로직
+    // 1-2-2-2-1 순서로 8픽 진행
+    // ========================================================================
+
+    // 픽 순서: A=먼저픽, B=나중픽
+    // 픽 번호:  1=A, 2=B, 3=B, 4=A, 5=A, 6=B, 7=B, 8=A
+    const PICK_ORDER = ['A', 'B', 'B', 'A', 'A', 'B', 'B', 'A'];
+    const TOTAL_PICKS = 8;
+
+    let currentRoom = null;
+    let currentDrafts = [];
+    let isProcessing = false;
+
+    (async function init() {
+        const v = validateUrlParams();
+        if (!v.ok) { showFatalError(v.message); return; }
+
+        if (!initSupabase()) {
+            showFatalError('서버 연결 실패. (Supabase 설정 확인 필요)');
+            return;
+        }
+
+        currentRoom = await validateAndLoadRoom();
+        if (!currentRoom) {
+            showFatalError('존재하지 않거나 만료된 방이거나, 인증 정보가 잘못되었습니다.');
+            return;
+        }
+
+        // 상태 검증
+        if (currentRoom.status !== 'drafting') {
+            // 다른 단계라면 main.html로
+            goToMain();
+            return;
+        }
+
+        // 픽 순서가 정해져 있는지
+        if (!currentRoom.pick_order) {
+            goToMain();
+            return;
+        }
+
+        // 드래프트 픽 로드
+        currentDrafts = await loadDrafts();
+
+        // 헤더
+        renderHeader(currentRoom,
+            '⚔️ STEP 2: 드래프트 진행',
+            '1-2-2-2-1 순서로 멤버를 픽합니다.'
+        );
+
+        // 실시간 구독
+        subscribeRealtime({
+            onRoom: (payload) => {
+                if (payload.eventType === 'DELETE') {
+                    showFatalError('관리자가 방을 닫았습니다.');
+                    return;
+                }
+                currentRoom = payload.new;
+                // 다음 단계로 넘어갔으면 라우팅
+                if (currentRoom.status === 'rps2') {
+                    goToRps(2);
+                } else if (currentRoom.status === 'done') {
+                    goToDone();
+                }
+            },
+            onDraft: async () => {
+                currentDrafts = await loadDrafts();
+                renderDraft();
+            }
+        });
+
+        hide('loadingView');
+        show('draftView');
+        renderDraft();
+    })();
+
+    // ========================================================================
+    // 픽 클릭 핸들러
+    // ========================================================================
+    async function onPickClick(memberName) {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        try {
+            const client = initSupabase();
+            const { data, error } = await client.rpc('make_draft_pick', {
+                p_room_code: ROOM_CODE,
+                p_leader_token: TOKEN,
+                p_member_name: memberName
+            });
+            if (error) {
+                showToast('오류: ' + error.message);
+                return;
+            }
+            if (data && data[0] && !data[0].success) {
+                showToast(data[0].message || '픽 실패');
+                return;
+            }
+            showToast(memberName + ' 픽 완료!');
+            currentDrafts = await loadDrafts();
+            renderDraft();
+        } catch (e) {
+            showToast('네트워크 오류');
+            console.error(e);
+        } finally {
+            isProcessing = false;
+        }
+    }
+
+    // ========================================================================
+    // 렌더링
+    // ========================================================================
+    function renderDraft() {
+        const pickCount = currentDrafts.length;
+        const nextPickNumber = pickCount + 1;
+
+        // 픽 순서 (A=먼저픽 = currentRoom.pick_order)
+        const pickerA = currentRoom.pick_order; // 'leader1' or 'leader2'
+        const pickerB = pickerA === 'leader1' ? 'leader2' : 'leader1';
+
+        // 다음 픽 차례
+        let expectedPicker = null;
+        if (pickCount < TOTAL_PICKS) {
+            const slot = PICK_ORDER[pickCount];
+            expectedPicker = slot === 'A' ? pickerA : pickerB;
+        }
+        const isMyTurn = expectedPicker === ROLE;
+        const isDone = pickCount >= TOTAL_PICKS;
+
+        // 상태 박스
+        const statusBox = $('draftStatusBox');
+        const currentText = $('currentText');
+        if (isDone) {
+            statusBox.className = 'draft-status done';
+            currentText.innerText = '✅ 드래프트 완료! 다음 단계로 이동 중...';
+        } else if (isMyTurn) {
+            statusBox.className = 'draft-status my-turn';
+            currentText.innerText = `🔥 내 차례! (${nextPickNumber}픽 / 총 ${TOTAL_PICKS}픽)`;
+        } else {
+            statusBox.className = 'draft-status';
+            const otherName = getRoleDisplay(expectedPicker, currentRoom);
+            currentText.innerText = `⏳ ${otherName}의 차례 (${nextPickNumber}픽 / 총 ${TOTAL_PICKS}픽)`;
+        }
+
+        // 진행 슬롯
+        renderProgress(pickCount, pickerA, pickerB);
+
+        // 멤버 그리드
+        renderMembers(isMyTurn);
+
+        // 팀 구성
+        renderTeams();
+    }
+
+    function renderProgress(pickCount, pickerA, pickerB) {
+        const html = [];
+        for (let i = 0; i < TOTAL_PICKS; i++) {
+            const slot = PICK_ORDER[i];
+            const owner = slot === 'A' ? pickerA : pickerB;
+            const done = i < pickCount;
+            const current = i === pickCount;
+
+            let cls = 'pick-slot';
+            if (done) {
+                cls += ` done ${owner}`;
+            } else if (current) {
+                cls += ' current';
+            }
+
+            const labelText = slot === 'A' ? '1팀' : '2팀'; // 시각적 안내
+            const actualTeam = owner === 'leader1' ? '1팀' : '2팀';
+
+            html.push(`
+                <div class="pick-slot-wrap">
+                    <div class="${cls}">${i + 1}</div>
+                    <div class="pick-slot-label">${actualTeam}</div>
+                </div>
+            `);
+        }
+        $('draftProgress').innerHTML = html.join('');
+    }
+
+    function renderMembers(isMyTurn) {
+        const members = currentRoom.members || [];
+        const pickedMap = {};
+        currentDrafts.forEach(d => { pickedMap[d.picked_member] = d.picker; });
+
+        const leader1Name = currentRoom.leader1_name;
+        const leader2Name = currentRoom.leader2_name;
+        const myName = getMyDisplayName(currentRoom);
+
+        const grid = $('membersGrid');
+        grid.innerHTML = '';
+
+        members.forEach(m => {
+            const btn = document.createElement('button');
+            btn.className = 'member-btn';
+            btn.type = 'button';
+
+            const isLeader = m === leader1Name || m === leader2Name;
+            const isMine = m === myName;
+            const pickedBy = pickedMap[m];
+
+            if (isLeader) {
+                btn.classList.add('is-leader');
+                if (isMine) btn.classList.add('is-mine');
+                const teamLabel = m === leader1Name ? '1팀 팀장' : '2팀 팀장';
+                btn.innerHTML = `👑 ${m}<span class="leader-tag">${teamLabel}</span>`;
+                btn.disabled = true;
+            } else if (pickedBy) {
+                btn.classList.add(`picked-${pickedBy}`);
+                const teamLabel = pickedBy === 'leader1' ? '1팀' : '2팀';
+                btn.innerHTML = `${m}<span class="pick-tag">→ ${teamLabel}</span>`;
+                btn.disabled = true;
+            } else if (isMyTurn) {
+                btn.innerText = m;
+                btn.onclick = () => onPickClick(m);
+            } else {
+                btn.innerText = m;
+                btn.disabled = true;
+            }
+            grid.appendChild(btn);
+        });
+    }
+
+    function renderTeams() {
+        const team1Members = [currentRoom.leader1_name || '(미정)'];
+        const team2Members = [currentRoom.leader2_name || '(미정)'];
+
+        currentDrafts.forEach(d => {
+            if (d.picker === 'leader1') team1Members.push(d.picked_member);
+            else if (d.picker === 'leader2') team2Members.push(d.picked_member);
+        });
+
+        $('teamsDisplay').innerHTML = `
+            <div class="team-box team1">
+                <div class="team-title">🏆 1팀 (${team1Members.length}명)</div>
+                ${team1Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${m}</div>`).join('')}
+            </div>
+            <div class="team-box team2">
+                <div class="team-title">🏆 2팀 (${team2Members.length}명)</div>
+                ${team2Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${m}</div>`).join('')}
+            </div>
+        `;
+    }
+    </script>
+</body>
+</html>

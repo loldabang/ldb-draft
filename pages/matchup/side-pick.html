@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>진영 선택 - 롤다방 내전 드래프트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../draft-common.css">
+    <style>
+        .side-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .side-btn {
+            padding: 40px 16px;
+            border-radius: 14px;
+            border: 3px solid;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Pretendard', sans-serif;
+            text-align: center;
+        }
+        .side-btn:hover:not(:disabled) {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+        .side-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .side-btn.blue {
+            background: linear-gradient(135deg, #dbeafe, #93c5fd);
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+        .side-btn.blue:hover:not(:disabled) {
+            background: linear-gradient(135deg, #bfdbfe, #60a5fa);
+        }
+        .side-btn.red {
+            background: linear-gradient(135deg, #fee2e2, #fca5a5);
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+        .side-btn.red:hover:not(:disabled) {
+            background: linear-gradient(135deg, #fecaca, #f87171);
+        }
+        .side-icon {
+            font-size: 56px;
+            margin-bottom: 12px;
+            line-height: 1;
+        }
+        .side-label {
+            font-size: 20px;
+            font-weight: 800;
+        }
+        .side-desc {
+            font-size: 12px;
+            margin-top: 6px;
+            opacity: 0.85;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrap">
+        <div id="headerArea"></div>
+
+        <div id="loadingView" class="card loading">
+            <div class="spinner"></div>
+            <div class="loading-text">방 정보 불러오는 중...</div>
+        </div>
+
+        <div id="sideView" class="card" style="display:none;">
+            <div class="status-box success" style="margin-bottom:8px;">
+                <div class="status-icon">🏆</div>
+                <div class="status-title">가위바위보 승리!</div>
+                <div class="status-desc">진영을 선택해주세요.</div>
+            </div>
+
+            <h2 style="margin-top:20px;">🎮 진영 선택</h2>
+            <p style="text-align:center;">블루(파란색) 진영과 레드(빨간색) 진영 중 선택하세요.</p>
+
+            <div class="side-grid">
+                <button class="side-btn blue" onclick="onChooseSide(true)">
+                    <div class="side-icon">🟦</div>
+                    <div class="side-label">블루</div>
+                    <div class="side-desc">파란색 진영</div>
+                </button>
+                <button class="side-btn red" onclick="onChooseSide(false)">
+                    <div class="side-icon">🟥</div>
+                    <div class="side-label">레드</div>
+                    <div class="side-desc">빨간색 진영</div>
+                </button>
+            </div>
+        </div>
+
+        <div id="alreadyView" class="card" style="display:none;">
+            <div class="status-box waiting">
+                <div class="status-icon">⏳</div>
+                <div class="status-title">잠시만 기다려주세요</div>
+                <div class="status-desc">진영 선택이 처리되는 중입니다...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../draft-common.js"></script>
+
+    <script>
+    let currentRoom = null;
+    let isProcessing = false;
+
+    (async function init() {
+        const v = validateUrlParams();
+        if (!v.ok) { showFatalError(v.message); return; }
+
+        if (!initSupabase()) {
+            showFatalError('서버 연결 실패. (Supabase 설정 확인 필요)');
+            return;
+        }
+
+        currentRoom = await validateAndLoadRoom();
+        if (!currentRoom) {
+            showFatalError('존재하지 않거나 만료된 방이거나, 인증 정보가 잘못되었습니다.');
+            return;
+        }
+
+        // 검증: status=rps2이고, 2차 가위바위보 승자가 본인이어야 함
+        const rpsGames = await loadRpsGames();
+        const rps2 = rpsGames.find(g => g.round === 2);
+        const validStatus = currentRoom.status === 'rps2';
+        const isWinner = rps2 && rps2.winner && rps2.winner === ROLE;
+
+        if (!validStatus || !isWinner) {
+            goToMain();
+            return;
+        }
+
+        renderHeader(currentRoom,
+            '🏆 STEP 4: 진영 선택',
+            '블루/레드 진영을 선택하세요.'
+        );
+
+        subscribeRealtime({
+            onRoom: (payload) => {
+                if (payload.eventType === 'DELETE') {
+                    showFatalError('관리자가 방을 닫았습니다.');
+                    return;
+                }
+                currentRoom = payload.new;
+                if (currentRoom.status === 'done') {
+                    goToDone();
+                }
+            }
+        });
+
+        hide('loadingView');
+        show('sideView');
+    })();
+
+    async function onChooseSide(takeBlue) {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        document.querySelectorAll('.side-btn').forEach(b => b.disabled = true);
+
+        try {
+            const client = initSupabase();
+            const { data, error } = await client.rpc('set_blue_side', {
+                p_room_code: ROOM_CODE,
+                p_leader_token: TOKEN,
+                p_take_blue: takeBlue
+            });
+            if (error) {
+                showToast('오류: ' + error.message);
+                document.querySelectorAll('.side-btn').forEach(b => b.disabled = false);
+                isProcessing = false;
+                return;
+            }
+            if (data && data[0] && !data[0].success) {
+                showToast(data[0].message || '실패');
+                document.querySelectorAll('.side-btn').forEach(b => b.disabled = false);
+                isProcessing = false;
+                return;
+            }
+
+            showToast(takeBlue ? '블루 진영 선택!' : '레드 진영 선택!');
+            hide('sideView');
+            show('alreadyView');
+            setTimeout(() => goToDone(), 1800);
+        } catch (e) {
+            showToast('네트워크 오류');
+            console.error(e);
+            document.querySelectorAll('.side-btn').forEach(b => b.disabled = false);
+            isProcessing = false;
+        }
+    }
+    </script>
+</body>
+</html>

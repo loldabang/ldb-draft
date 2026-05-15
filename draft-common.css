@@ -1,0 +1,355 @@
+/* ============================================================================
+   롤다방 내전 드래프트 — 공통 스타일
+   ldb_260509.html 디자인 시스템 차용
+   ============================================================================ */
+
+:root {
+    --primary: #000000;
+    --primary-hover: #333333;
+    --bg: #f4f6f8;
+    --card-bg: #ffffff;
+    --text-main: #111111;
+    --text-muted: #666666;
+    --accent: #555555;
+    --border: #e2e8f0;
+    --success: #2e7d32;
+    --warning: #f57c00;
+    --danger: #d32f2f;
+    --info: #1565c0;
+    --team1-color: #f59e0b;
+    --team1-bg: #fffbeb;
+    --team1-text: #92400e;
+    --team2-color: #3b82f6;
+    --team2-bg: #eff6ff;
+    --team2-text: #1e40af;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Pretendard', sans-serif;
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+}
+
+.page-wrap {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ===== 카드 ===== */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== 타이틀 ===== */
+h1 {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-align: center;
+    border-bottom: 1px solid var(--primary);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: var(--text-main);
+}
+
+p {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+/* ===== 헤더 영역 ===== */
+.header-card {
+    text-align: center;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.role-badge.role-leader1 {
+    background: var(--team1-bg);
+    color: var(--team1-text);
+    border: 1px solid var(--team1-color);
+}
+
+.role-badge.role-leader2 {
+    background: var(--team2-bg);
+    color: var(--team2-text);
+    border: 1px solid var(--team2-color);
+}
+
+.room-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 4px;
+}
+
+.room-info strong {
+    color: var(--text-main);
+    font-family: 'Pretendard', monospace;
+    letter-spacing: 1px;
+}
+
+/* ===== 단계 인디케이터 ===== */
+.stage-indicator {
+    text-align: center;
+    padding: 16px;
+    background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+    border-radius: 10px;
+    margin-top: 16px;
+}
+
+.stage-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.stage-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* ===== 버튼 ===== */
+.btn {
+    background-color: var(--primary);
+    color: #ffffff;
+    border: none;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 6px;
+    font-family: 'Pretendard', sans-serif;
+}
+
+.btn:hover:not(:disabled) {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #f9f9f9;
+    border-color: var(--primary);
+}
+
+.btn-large {
+    padding: 16px 24px;
+    font-size: 16px;
+}
+
+/* ===== 상태 박스 ===== */
+.status-box {
+    text-align: center;
+    padding: 24px 16px;
+    background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+    border-radius: 12px;
+    margin-top: 16px;
+}
+
+.status-box.waiting {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+}
+
+.status-box.success {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+}
+
+.status-box.danger {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+}
+
+.status-icon {
+    font-size: 40px;
+    margin-bottom: 8px;
+    line-height: 1;
+}
+
+.status-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    color: var(--text-main);
+}
+
+.status-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* ===== 로딩 ===== */
+.loading {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e5e7eb;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* ===== 토스트 (알림) ===== */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+/* ===== 팀 박스 (드래프트, 완료 페이지 공통) ===== */
+.teams-display {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.team-box {
+    padding: 16px;
+    border-radius: 10px;
+    border: 2px solid;
+}
+
+.team-box.team1 {
+    background: var(--team1-bg);
+    border-color: var(--team1-color);
+}
+
+.team-box.team2 {
+    background: var(--team2-bg);
+    border-color: var(--team2-color);
+}
+
+.team-box .team-title {
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.team-box.team1 .team-title { color: var(--team1-text); }
+.team-box.team2 .team-title { color: var(--team2-text); }
+
+.team-member {
+    font-size: 13px;
+    padding: 4px 0;
+    color: var(--text-main);
+}
+
+.team-member.leader {
+    font-weight: 800;
+}
+
+.team-member.leader::before {
+    content: '👑 ';
+}
+
+.team-member.empty {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ===== 반응형 (작은 화면) ===== */
+@media (max-width: 480px) {
+    body {
+        padding: 12px;
+    }
+    .card {
+        padding: 20px;
+    }
+    h1 {
+        font-size: 18px;
+        letter-spacing: 1px;
+    }
+}
