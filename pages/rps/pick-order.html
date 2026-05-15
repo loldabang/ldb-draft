@@ -7,17 +7,29 @@
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../draft-common.css">
     <style>
-        /* 페이지 전용 스타일 */
+        body { align-items: flex-start; }
+        .page-wrap { max-width: 1000px; }
+
+        .section-title-2 {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* 픽 순서 선택 버튼 */
         .order-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 16px;
-            margin-top: 20px;
+            margin-top: 14px;
         }
         .order-btn {
-            padding: 32px 16px;
+            padding: 24px 14px;
             border: 3px solid var(--border);
-            border-radius: 14px;
+            border-radius: 12px;
             background: #fff;
             cursor: pointer;
             transition: all 0.2s;
@@ -26,12 +38,9 @@
         }
         .order-btn:hover:not(:disabled) {
             transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.08);
         }
-        .order-btn:disabled {
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
+        .order-btn:disabled { cursor: not-allowed; opacity: 0.5; }
         .order-btn.first {
             border-color: var(--warning);
             background: linear-gradient(135deg, #fffaf3, #fff3e0);
@@ -48,106 +57,125 @@
             border-color: #0277bd;
             background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
         }
-        .order-icon {
-            font-size: 44px;
-            margin-bottom: 10px;
-            line-height: 1;
-        }
-        .order-label {
-            font-size: 17px;
-            font-weight: 800;
-            color: var(--text-main);
-            margin-bottom: 6px;
-        }
-        .order-desc {
-            font-size: 12px;
-            color: var(--text-muted);
-            line-height: 1.4;
-        }
+        .order-icon { font-size: 36px; margin-bottom: 6px; line-height: 1; }
+        .order-label { font-size: 16px; font-weight: 800; color: var(--text-main); margin-bottom: 4px; }
+        .order-desc { font-size: 11px; color: var(--text-muted); line-height: 1.3; }
 
-        /* 픽 순서 설명 박스 */
         .order-explanation {
             background: linear-gradient(135deg, #f9fafb, #f3f4f6);
             border-radius: 10px;
-            padding: 16px;
-            margin-top: 16px;
+            padding: 12px;
+            margin-top: 14px;
             font-size: 12px;
             color: var(--text-muted);
         }
-        .order-explanation strong {
-            color: var(--text-main);
-        }
+        .order-explanation strong { color: var(--text-main); }
         .order-explanation .sequence {
             font-family: 'Pretendard', monospace;
             background: #fff;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 6px;
-            margin-top: 8px;
+            margin-top: 6px;
             font-weight: 700;
             color: var(--text-main);
             text-align: center;
-            letter-spacing: 2px;
+            letter-spacing: 1.5px;
         }
+
+        /* 결과 배너 (이긴/진 분기) */
+        .result-banner {
+            text-align: center;
+            padding: 18px 16px;
+            border-radius: 12px;
+        }
+        .result-banner.win { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+        .result-banner.lose { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
+        .result-banner .result-icon { font-size: 36px; line-height: 1; margin-bottom: 6px; }
+        .result-banner .result-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+        .result-banner.win .result-title { color: #065f46; }
+        .result-banner.lose .result-title { color: var(--text-muted); }
+        .result-banner .result-desc { font-size: 12px; color: var(--text-muted); }
     </style>
 </head>
 <body>
     <div class="page-wrap">
-        <!-- 헤더 -->
         <div id="headerArea"></div>
 
-        <!-- 로딩 -->
         <div id="loadingView" class="card loading">
             <div class="spinner"></div>
             <div class="loading-text">방 정보 불러오는 중...</div>
         </div>
 
-        <!-- 픽 순서 선택 -->
-        <div id="orderView" class="card" style="display:none;">
-            <div class="status-box success" style="margin-bottom:8px;">
-                <div class="status-icon">🏆</div>
-                <div class="status-title">가위바위보 승리!</div>
-                <div class="status-desc">픽 순서를 결정해주세요.</div>
+        <div id="orderView" style="display:none;">
+
+            <!-- 결과 배너 -->
+            <div class="card">
+                <div id="resultBanner" class="result-banner">
+                    <div class="result-icon" id="resultIcon">🏆</div>
+                    <div class="result-title" id="resultTitle">로딩 중...</div>
+                    <div class="result-desc" id="resultDesc"></div>
+                </div>
             </div>
 
-            <h2 style="margin-top:20px;">⚡ 픽 순서 선택</h2>
-            <p style="text-align:center;">먼저 픽할지, 나중에 픽할지 선택하세요.</p>
+            <!-- 2단 그리드 -->
+            <div class="split-grid">
+                <!-- 왼쪽: 드래프트 멤버 8명 -->
+                <div class="card">
+                    <div class="section-title-2">📋 드래프트 멤버 (<span id="memberCount">8</span>명)</div>
+                    <div id="memberPreviewList" class="member-preview-list"></div>
+                </div>
 
-            <!-- 단계 C 추가: 드래프트 멤버 미리보기 -->
-            <div class="member-preview-section">
-                <div class="preview-section-title">📋 드래프트 멤버 (<span id="memberCount">8</span>명)</div>
-                <div id="memberPreviewList" class="member-preview-list"></div>
+                <!-- 오른쪽: 내 팀 (위) / 상대 팀 (아래) -->
+                <div class="split-grid-right">
+                    <div class="card">
+                        <div class="section-title-2"><span id="myTeamHeader">🏆 내 팀</span></div>
+                        <div id="myTeamBox"></div>
+                    </div>
+                    <div class="card">
+                        <div class="section-title-2"><span id="otherTeamHeader">🤝 상대 팀</span></div>
+                        <div id="otherTeamBox"></div>
+                    </div>
+                </div>
             </div>
 
-            <!-- 단계 C 추가: 1팀 / 2팀 박스 미리보기 -->
-            <div class="member-preview-section" style="margin-top:16px;">
-                <div class="preview-section-title">👥 팀 구성 (드래프트 시작 전)</div>
-                <div id="teamPreview" class="teams-display" style="margin-top:8px;"></div>
+            <!-- 픽 순서 선택 (이긴 사람만) -->
+            <div class="card" id="pickOrderControls" style="display:none;">
+                <h2 style="margin-top:0; font-size:16px;">⚡ 픽 순서 선택</h2>
+                <p style="text-align:center; font-size:13px;">먼저 픽할지, 나중에 픽할지 선택하세요.</p>
+
+                <div class="order-grid">
+                    <button class="order-btn first" onclick="onChoosePickOrder(true)">
+                        <div class="order-icon">⚡</div>
+                        <div class="order-label">먼저 픽</div>
+                        <div class="order-desc">내가 1번째 픽으로 시작</div>
+                    </button>
+                    <button class="order-btn last" onclick="onChoosePickOrder(false)">
+                        <div class="order-icon">🛡️</div>
+                        <div class="order-label">나중 픽</div>
+                        <div class="order-desc">상대가 먼저 픽, 내가 마지막 픽</div>
+                    </button>
+                </div>
+
+                <div class="order-explanation">
+                    <strong>📋 1-2-2-2-1 드래프트 순서</strong>
+                    <div class="sequence">A → B B → A A → B B → A</div>
+                    <div style="margin-top:6px;">
+                        총 8픽. "먼저 픽(A)"이 1번과 마지막을, 중간은 2명씩 번갈아 픽합니다.
+                    </div>
+                </div>
             </div>
 
-            <div class="order-grid">
-                <button class="order-btn first" onclick="onChoosePickOrder(true)">
-                    <div class="order-icon">⚡</div>
-                    <div class="order-label">먼저 픽</div>
-                    <div class="order-desc">내가 1번째 픽으로<br>시작</div>
-                </button>
-                <button class="order-btn last" onclick="onChoosePickOrder(false)">
-                    <div class="order-icon">🛡️</div>
-                    <div class="order-label">나중 픽</div>
-                    <div class="order-desc">상대가 먼저 픽,<br>내가 두 명씩 픽</div>
-                </button>
-            </div>
-
-            <div class="order-explanation">
-                <strong>📋 1-2-2-2-1 드래프트 순서</strong>
-                <div class="sequence">A → B B → A A → B B → A</div>
-                <div style="margin-top:8px;">
-                    총 8픽으로 진행되며, "먼저 픽(A)"이 1번째와 마지막을 가져가고,
-                    중간에는 2명씩 번갈아 픽합니다.
+            <!-- 진 사람 대기 화면 -->
+            <div class="card" id="loserWaiting" style="display:none;">
+                <div class="status-box waiting">
+                    <div class="status-icon">⏳</div>
+                    <div class="status-title">상대 팀장이 픽 순서를 선택 중입니다</div>
+                    <div class="status-desc">잠시만 기다려주세요. 결정되면 자동으로 다음 단계로 진행됩니다.</div>
                 </div>
             </div>
         </div>
 
-        <!-- 이미 결정된 경우 (드물게 발생 가능) -->
+        <!-- 처리 중 (이긴 사람이 픽 순서 선택 후) -->
         <div id="alreadyView" class="card" style="display:none;">
             <div class="status-box waiting">
                 <div class="status-icon">⏳</div>
@@ -157,18 +185,17 @@
         </div>
     </div>
 
-    <!-- Supabase + 공통 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../../draft-common.js"></script>
 
     <script>
     // ========================================================================
-    // pick-order.html 로직
-    // 1차 가위바위보 승자만 들어와야 하는 페이지
+    // pick-order.html (단계 E: 이긴 사람 + 진 사람 모두 진입, 진 사람은 read-only)
     // ========================================================================
 
     let currentRoom = null;
     let isProcessing = false;
+    let isWinner = false;
 
     (async function init() {
         const v = validateUrlParams();
@@ -185,31 +212,34 @@
             return;
         }
 
-        // 검증: 1차 가위바위보 결과를 확인
+        // 1차 가위바위보 결과 확인
         const rpsGames = await loadRpsGames();
         const rps1 = rpsGames.find(g => g.round === 1);
 
-        // 정상 진입 조건: status가 rps1 또는 waiting이고, rps1 승자가 본인이어야 함
         const validStatus = currentRoom.status === 'rps1' || currentRoom.status === 'waiting';
-        const isWinner = rps1 && rps1.winner && rps1.winner === ROLE;
+        const winnerExists = rps1 && rps1.winner && rps1.winner !== 'draw';
 
-        if (!validStatus || !isWinner) {
-            // 잘못된 진입 → main.html이 적절한 페이지로 라우팅
+        if (!validStatus || !winnerExists) {
+            // 아직 가위바위보 안 끝났거나 다른 단계 → main이 적절히 라우팅
             goToMain();
             return;
         }
 
-        // 화면 셋업
-        renderHeader(currentRoom,
-            '🏆 STEP 2: 픽 순서 선택',
-            '먼저 픽할지, 나중에 픽할지 선택하세요.'
-        );
+        // 이미 픽 순서가 결정된 경우 → 드래프트로
+        if (currentRoom.pick_order && currentRoom.status === 'drafting') {
+            goToDraft();
+            return;
+        }
 
-        // 단계 C 추가: 멤버 + 팀 박스 미리보기 렌더링
-        renderMemberPreview(currentRoom);
-        renderTeamPreview(currentRoom);
+        isWinner = (rps1.winner === ROLE);
 
-        // 실시간 구독 (상대가 뭔가 바꾸거나 방 상태 바뀌면 자동 라우팅)
+        renderHeader(currentRoom);
+        renderResultBanner();
+        renderMembers();
+        renderTeams();
+        renderPickOrderControls();
+
+        // 실시간 구독: status가 drafting으로 바뀌면 자동 이동
         subscribeRealtime({
             onRoom: (payload) => {
                 if (payload.eventType === 'DELETE') {
@@ -217,7 +247,6 @@
                     return;
                 }
                 currentRoom = payload.new;
-                // status가 drafting으로 바뀌면 → 드래프트 페이지로
                 if (currentRoom.status === 'drafting') {
                     goToDraft();
                 }
@@ -228,12 +257,26 @@
         show('orderView');
     })();
 
-    // 단계 C 추가: 멤버 8명 명단 박스 렌더링
-    function renderMemberPreview(room) {
+    function renderResultBanner() {
+        const banner = $('resultBanner');
+        if (isWinner) {
+            banner.classList.add('win');
+            $('resultIcon').innerText = '🏆';
+            $('resultTitle').innerText = '가위바위보 승리!';
+            $('resultDesc').innerText = '드래프트 멤버를 확인하고 픽 순서를 선택해주세요.';
+        } else {
+            banner.classList.add('lose');
+            $('resultIcon').innerText = '😅';
+            $('resultTitle').innerText = '아쉽게 졌습니다';
+            $('resultDesc').innerText = '상대가 픽 순서를 결정 중입니다. 멤버를 미리 확인해보세요.';
+        }
+    }
+
+    function renderMembers() {
         const list = $('memberPreviewList');
         const countEl = $('memberCount');
         if (!list) return;
-        const members = Array.isArray(room.members) ? room.members : [];
+        const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
         if (countEl) countEl.innerText = members.length;
         if (members.length === 0) {
             list.innerHTML = '<div class="member-preview-row" style="color:var(--text-muted); font-style:italic;">멤버 정보가 없습니다.</div>';
@@ -244,35 +287,43 @@
         ).join('');
     }
 
-    // 단계 C 추가: 1팀 / 2팀 박스 미리보기 (팀장만, 빈 슬롯 4개)
-    function renderTeamPreview(room) {
-        const wrap = $('teamPreview');
-        if (!wrap) return;
-        const l1 = escapeHtml(room.leader1_name || '(미정)');
-        const l2 = escapeHtml(room.leader2_name || '(미정)');
-        const emptySlots = '<div class="team-member empty">(픽 대기)</div>'.repeat(4);
-        wrap.innerHTML = `
-            <div class="team-box team1">
-                <div class="team-title">🏆 1팀</div>
-                <div class="team-member leader">${l1}</div>
-                ${emptySlots}
-            </div>
-            <div class="team-box team2">
-                <div class="team-title">🏆 2팀</div>
-                <div class="team-member leader">${l2}</div>
-                ${emptySlots}
-            </div>
-        `;
+    function renderTeams() {
+        const myTeamLabel = ROLE === 'leader1' ? '1팀' : '2팀';
+        const otherTeamLabel = ROLE === 'leader1' ? '2팀' : '1팀';
+        const myLeaderName = ROLE === 'leader1' ? currentRoom.leader1_name : currentRoom.leader2_name;
+        const otherLeaderName = ROLE === 'leader1' ? currentRoom.leader2_name : currentRoom.leader1_name;
+
+        $('myTeamHeader').innerText = `🏆 내 팀 (${myTeamLabel})`;
+        $('otherTeamHeader').innerText = `🤝 상대 팀 (${otherTeamLabel})`;
+
+        const buildBox = (leaderName) => {
+            let html = `<div class="team-vbox-row leader">👑 ${escapeHtml(leaderName || '(미정)')}</div>`;
+            for (let i = 0; i < 4; i++) {
+                html += `<div class="team-vbox-row empty">(픽 대기)</div>`;
+            }
+            return html;
+        };
+
+        $('myTeamBox').innerHTML = buildBox(myLeaderName);
+        $('otherTeamBox').innerHTML = buildBox(otherLeaderName);
     }
 
-    // ========================================================================
-    // 픽 순서 선택
-    // ========================================================================
+    function renderPickOrderControls() {
+        if (isWinner) {
+            show('pickOrderControls');
+            hide('loserWaiting');
+        } else {
+            hide('pickOrderControls');
+            show('loserWaiting');
+        }
+    }
+
+    // 픽 순서 선택 (이긴 사람만)
     async function onChoosePickOrder(pickFirst) {
+        if (!isWinner) return;
         if (isProcessing) return;
         isProcessing = true;
 
-        // 버튼 비활성화
         document.querySelectorAll('.order-btn').forEach(b => b.disabled = true);
 
         try {
@@ -295,12 +346,10 @@
                 return;
             }
 
-            // 성공 - 화면 전환 (실시간 구독에서 자동 라우팅됨)
             showToast(pickFirst ? '먼저 픽으로 결정!' : '나중 픽으로 결정!');
             hide('orderView');
             show('alreadyView');
-            // 안전망: 2초 후에도 라우팅 안 됐으면 직접 이동
-            setTimeout(() => goToDraft(), 2000);
+            setTimeout(() => goToDraft(), 1500);
         } catch (e) {
             showToast('네트워크 오류');
             console.error(e);
