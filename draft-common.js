@@ -332,21 +332,23 @@ function rpsKorean(choice) {
     return choice === 'rock' ? '바위' : choice === 'paper' ? '보' : choice === 'scissors' ? '가위' : '?';
 }
 
-// 페이지 공통 헤더 렌더링 (역할 배지, 방 코드)
+// 단계 C 추가: HTML 이스케이프 (사용자 입력값을 innerHTML에 넣을 때 안전 보장)
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+}
+
+// 페이지 공통 헤더 렌더링 (단계 C: 간소화 — 팀장 이름 배지만 표시)
+// stageTitle, stageSubtitle 인자는 기존 호출부 호환을 위해 받지만 표시하지 않음
 function renderHeader(room, stageTitle, stageSubtitle) {
     const header = $('headerArea');
     if (!header) return;
     const myName = getMyDisplayName(room);
     const roleLabel = ROLE === 'leader1' ? '1팀 팀장' : '2팀 팀장';
     header.innerHTML = `
-        <div class="card header-card">
-            <span class="role-badge role-${ROLE}">👑 ${roleLabel} (${myName})</span>
-            <h1>롤다방 내전 드래프트</h1>
-            <div class="room-info">방 코드: <strong>${ROOM_CODE}</strong></div>
-            <div class="stage-indicator">
-                <div class="stage-title">${stageTitle || ''}</div>
-                ${stageSubtitle ? `<div class="stage-subtitle">${stageSubtitle}</div>` : ''}
-            </div>
+        <div class="card header-card" style="padding: 14px 18px;">
+            <span class="role-badge role-${ROLE}">👑 ${roleLabel} (${escapeHtml(myName)})</span>
         </div>
     `;
 }
