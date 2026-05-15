@@ -80,9 +80,9 @@
             gap: 2px;
         }
 
-        /* 멤버 그리드 */
+        /* 멤버 그리드 — 단계 F: 1열로 (왼쪽에 세로로 쭈욱) */
         .members-section {
-            margin-top: 20px;
+            margin-top: 0;
         }
         .section-title {
             font-size: 13px;
@@ -94,26 +94,25 @@
         }
         .members-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-        @media (min-width: 600px) {
-            .members-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
+            grid-template-columns: 1fr;
+            gap: 8px;
         }
         .member-btn {
-            padding: 14px 10px;
+            padding: 12px 14px;
             border: 2px solid var(--border);
             border-radius: 10px;
             background: #fff;
             cursor: pointer;
             transition: all 0.15s;
             font-family: 'Pretendard', sans-serif;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
-            text-align: center;
+            text-align: left;
             color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
         .member-btn:hover:not(:disabled) {
             border-color: var(--primary);
@@ -138,11 +137,13 @@
             position: relative;
         }
         .member-btn .pick-tag {
-            display: block;
-            font-size: 10px;
-            font-weight: 600;
-            margin-top: 4px;
-            opacity: 0.8;
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.07);
+            flex-shrink: 0;
         }
         .member-btn.is-leader {
             background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
@@ -157,13 +158,16 @@
             color: #92400e;
         }
         .member-btn.is-leader .leader-tag {
-            display: block;
-            font-size: 10px;
-            font-weight: 600;
-            margin-top: 4px;
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.07);
+            flex-shrink: 0;
         }
 
-        /* 단계 D 추가: 후보로 선택된 멤버 (확정 전 상태) */
+        /* 후보로 선택된 멤버 (확정 전) */
         .member-btn.is-selected {
             border-color: var(--warning);
             border-width: 3px;
@@ -172,14 +176,18 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 16px rgba(245, 158, 11, 0.28);
         }
-        .member-btn.is-selected::after {
-            content: '✓ 선택됨';
-            display: block;
-            font-size: 10px;
-            font-weight: 700;
-            margin-top: 4px;
-            color: var(--warning);
-            letter-spacing: 0.5px;
+        .member-btn .selected-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px; height: 26px;
+            background: var(--warning);
+            color: #fff;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: 800;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            flex-shrink: 0;
         }
 
         /* 단계 D 추가: 확정 버튼 영역 */
@@ -219,7 +227,7 @@
     </style>
 </head>
 <body>
-    <div class="page-wrap" style="max-width: 1000px;">
+    <div class="page-wrap" style="max-width: 1100px;">
         <!-- 헤더 -->
         <div id="headerArea"></div>
 
@@ -614,19 +622,15 @@
                 btn.innerHTML = `${escapeHtml(m)}<span class="pick-tag">→ ${teamLabel}</span>`;
                 btn.disabled = true;
             } else if (isMyTurn) {
-                // 단계 E: 다중 선택 지원
+                // 단계 E/F: 다중 선택 지원 + 항상 뱃지 표시
                 btn.innerText = m;
-                btn.style.position = 'relative';
                 const orderIdx = pendingPicks.indexOf(m);
                 if (orderIdx !== -1) {
                     btn.classList.add('is-selected');
-                    // 다중 선택일 때만 순서 뱃지 표시
-                    if (_getMyAllowedPicks() > 1) {
-                        const badge = document.createElement('span');
-                        badge.style.cssText = 'position:absolute; top:4px; right:6px; background:var(--warning); color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; box-shadow:0 2px 6px rgba(0,0,0,0.15);';
-                        badge.innerText = String(orderIdx + 1);
-                        btn.appendChild(badge);
-                    }
+                    const badge = document.createElement('span');
+                    badge.className = 'selected-badge';
+                    badge.innerText = _getMyAllowedPicks() > 1 ? String(orderIdx + 1) : '✓';
+                    btn.appendChild(badge);
                 }
                 btn.onclick = () => onMemberSelect(m);
             } else {
