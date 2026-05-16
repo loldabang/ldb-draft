@@ -1,607 +1,493 @@
-/* ============================================================================
-   롤다방 내전 드래프트 — 공통 스타일
-   ldb_260509.html 디자인 시스템 차용
-   ============================================================================ */
+// ============================================================================
+// 롤다방 내전 드래프트 — 공통 JavaScript
+// 모든 페이지에서 공유하는 함수들
+// ============================================================================
 
-:root {
-    --primary: #000000;
-    --primary-hover: #333333;
-    --bg: #f4f6f8;
-    --card-bg: #ffffff;
-    --text-main: #111111;
-    --text-muted: #666666;
-    --accent: #555555;
-    --border: #e2e8f0;
-    --success: #2e7d32;
-    --warning: #f57c00;
-    --danger: #d32f2f;
-    --info: #1565c0;
-    --team1-color: #f59e0b;
-    --team1-bg: #fffbeb;
-    --team1-text: #92400e;
-    --team2-color: #3b82f6;
-    --team2-bg: #eff6ff;
-    --team2-text: #1e40af;
-}
+// ============================================================================
+// 1. Supabase 설정
+// ============================================================================
+// ⚠️ 아래 두 값을 본인의 Supabase 프로젝트 정보로 교체하세요.
+const SUPABASE_URL = 'https://eseskfeyvxqdvqqofeqb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zSH-Q5GCTXkRJ0UDd-IrlQ_DYKSkQzc';
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Pretendard', sans-serif;
-}
+// ============================================================================
+// 2. URL 파라미터 파싱
+// ============================================================================
+const urlParams = new URLSearchParams(window.location.search);
+const ROOM_CODE = urlParams.get('room');
+const ROLE = urlParams.get('role');         // 'leader1' or 'leader2'
+const TOKEN = urlParams.get('token');
 
-body {
-    background-color: var(--bg);
-    color: var(--text-main);
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 20px;
-}
+// ============================================================================
+// 3. Supabase 클라이언트 (전역)
+// ============================================================================
+let supabaseClient = null;
 
-.page-wrap {
-    width: 100%;
-    max-width: 720px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-/* ===== 카드 ===== */
-.card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 32px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    animation: fadeIn 0.4s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* ===== 타이틀 ===== */
-h1 {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--primary);
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    text-align: center;
-    border-bottom: 1px solid var(--primary);
-    padding-bottom: 15px;
-    margin-bottom: 20px;
-}
-
-h2 {
-    font-size: 18px;
-    font-weight: 800;
-    margin-bottom: 12px;
-    color: var(--text-main);
-}
-
-p {
-    font-size: 14px;
-    color: var(--text-muted);
-    line-height: 1.6;
-}
-
-/* ===== 헤더 영역 ===== */
-.header-card {
-    text-align: center;
-}
-
-.role-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 16px;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-}
-
-.role-badge.role-leader1 {
-    background: var(--team1-bg);
-    color: var(--team1-text);
-    border: 1px solid var(--team1-color);
-}
-
-.role-badge.role-leader2 {
-    background: var(--team2-bg);
-    color: var(--team2-text);
-    border: 1px solid var(--team2-color);
-}
-
-.room-info {
-    font-size: 12px;
-    color: var(--text-muted);
-    text-align: center;
-    margin-top: 4px;
-}
-
-.room-info strong {
-    color: var(--text-main);
-    font-family: 'Pretendard', monospace;
-    letter-spacing: 1px;
-}
-
-/* ===== 단계 인디케이터 ===== */
-.stage-indicator {
-    text-align: center;
-    padding: 16px;
-    background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-    border-radius: 10px;
-    margin-top: 16px;
-}
-
-.stage-title {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--text-main);
-}
-
-.stage-subtitle {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 4px;
-}
-
-/* ===== 버튼 ===== */
-.btn {
-    background-color: var(--primary);
-    color: #ffffff;
-    border: none;
-    padding: 12px 16px;
-    font-size: 14px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    border-radius: 6px;
-    font-family: 'Pretendard', sans-serif;
-}
-
-.btn:hover:not(:disabled) {
-    background-color: var(--primary-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.btn-secondary {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border);
-    color: var(--text-main);
-}
-
-.btn-secondary:hover:not(:disabled) {
-    background-color: #f9f9f9;
-    border-color: var(--primary);
-}
-
-.btn-large {
-    padding: 16px 24px;
-    font-size: 16px;
-}
-
-/* ===== 상태 박스 ===== */
-.status-box {
-    text-align: center;
-    padding: 24px 16px;
-    background: linear-gradient(135deg, #f9fafb, #f3f4f6);
-    border-radius: 12px;
-    margin-top: 16px;
-}
-
-.status-box.waiting {
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
-}
-
-.status-box.success {
-    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-}
-
-.status-box.danger {
-    background: linear-gradient(135deg, #fee2e2, #fecaca);
-}
-
-.status-icon {
-    font-size: 40px;
-    margin-bottom: 8px;
-    line-height: 1;
-}
-
-.status-title {
-    font-size: 16px;
-    font-weight: 800;
-    margin-bottom: 4px;
-    color: var(--text-main);
-}
-
-.status-desc {
-    font-size: 13px;
-    color: var(--text-muted);
-}
-
-/* ===== 로딩 ===== */
-.loading {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-.spinner {
-    display: inline-block;
-    width: 40px;
-    height: 40px;
-    border: 4px solid #e5e7eb;
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin-bottom: 16px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.loading-text {
-    font-size: 14px;
-    color: var(--text-muted);
-}
-
-/* ===== 토스트 (알림) ===== */
-.toast {
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.85);
-    color: #fff;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    z-index: 9999;
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-}
-
-.toast.show {
-    opacity: 1;
-}
-
-/* ===== 팀 박스 (드래프트, 완료 페이지 공통) ===== */
-.teams-display {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 16px;
-}
-
-.team-box {
-    padding: 16px;
-    border-radius: 10px;
-    border: 2px solid;
-}
-
-.team-box.team1 {
-    background: var(--team1-bg);
-    border-color: var(--team1-color);
-}
-
-.team-box.team2 {
-    background: var(--team2-bg);
-    border-color: var(--team2-color);
-}
-
-.team-box .team-title {
-    font-size: 13px;
-    font-weight: 800;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.team-box.team1 .team-title { color: var(--team1-text); }
-.team-box.team2 .team-title { color: var(--team2-text); }
-
-.team-member {
-    font-size: 13px;
-    padding: 4px 0;
-    color: var(--text-main);
-}
-
-.team-member.leader {
-    font-weight: 800;
-}
-
-.team-member.leader::before {
-    content: '👑 ';
-}
-
-.team-member.empty {
-    color: var(--text-muted);
-    font-style: italic;
-}
-
-/* ============================================================================
-   단계 C 추가: pick-order.html의 멤버 미리보기 스타일
-   ============================================================================ */
-.preview-section-title {
-    font-size: 13px;
-    font-weight: 800;
-    color: var(--text-main);
-    margin-top: 18px;
-    margin-bottom: 6px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid var(--border);
-}
-
-.member-preview-section {
-    /* 카드 내부에서 섹션 구분용. 별도 박스는 아님 */
-}
-
-.member-preview-list {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-    margin-top: 6px;
-    margin-bottom: 8px;
-}
-
-.member-preview-row {
-    padding: 9px 14px;
-    background: #f9fafb;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 13px;
-    color: var(--text-main);
-    transition: background 0.15s;
-}
-
-.member-preview-row:hover {
-    background: #f3f4f6;
-}
-
-/* ============================================================================
-   단계 E 추가: 2단 그리드 레이아웃 (왼쪽 멤버, 오른쪽 위 내팀 / 아래 상대팀)
-   ============================================================================ */
-.split-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-}
-
-.split-grid > .card {
-    margin: 0;
-}
-
-.split-grid-right {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.split-grid-right > .card {
-    margin: 0;
-}
-
-@media (max-width: 720px) {
-    .split-grid {
-        grid-template-columns: 1fr;
+function initSupabase() {
+    if (supabaseClient) return supabaseClient;
+    if (!window.supabase) {
+        console.error('Supabase library not loaded');
+        return null;
+    }
+    if (SUPABASE_URL.includes('YOUR_SUPABASE') || SUPABASE_KEY.includes('YOUR_SUPABASE')) {
+        console.error('Supabase 설정이 필요합니다.');
+        return null;
+    }
+    try {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        return supabaseClient;
+    } catch (e) {
+        console.error('Supabase client creation failed:', e);
+        return null;
     }
 }
 
-/* ============================================================================
-   3단 그리드 (왼쪽 멤버 / 가운데 양 팀 / 오른쪽 컨트롤)
-   ============================================================================ */
-.triple-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 14px;
-    align-items: stretch;
+// ============================================================================
+// 4. 페이지 이동 (URL 파라미터 유지)
+// ============================================================================
+function goToPage(pagePath, extraParams = {}) {
+    const params = new URLSearchParams();
+    if (ROOM_CODE) params.set('room', ROOM_CODE);
+    if (ROLE) params.set('role', ROLE);
+    if (TOKEN) params.set('token', TOKEN);
+    Object.keys(extraParams).forEach(k => {
+        if (extraParams[k] !== undefined && extraParams[k] !== null) {
+            params.set(k, extraParams[k]);
+        }
+    });
+    window.location.href = pagePath + '?' + params.toString();
 }
 
-.triple-grid > .card,
-.triple-grid > div > .card {
-    margin: 0;
-    height: 100%;
-    box-sizing: border-box;
+// ----------------------------------------------------------------------------
+// 페이지 이동 함수들
+//
+// 사이트 루트(ldb-draft/) 기준 절대 경로를 사용합니다.
+// GitHub Pages 호스팅 구조: https://USER.github.io/ldb-draft/
+//                          → 서브경로 /ldb-draft/ 가 사이트 루트가 됨
+//
+// 이렇게 하면 어느 폴더 깊이에서 호출해도 동일하게 동작합니다.
+// ----------------------------------------------------------------------------
+
+// 사이트 베이스 경로 자동 감지
+// (예: pathname이 /ldb-draft/pages/rps/rps-1v1.html 이면 베이스는 /ldb-draft/)
+function getSiteBase() {
+    const path = window.location.pathname;
+    // main.html, pages/... 같은 경로의 윗부분이 베이스
+    // 가장 안전: '/main.html' 또는 '/pages/' 가 나오는 지점 앞을 베이스로
+    const mainIdx = path.indexOf('/main.html');
+    if (mainIdx >= 0) return path.substring(0, mainIdx + 1);
+    const pagesIdx = path.indexOf('/pages/');
+    if (pagesIdx >= 0) return path.substring(0, pagesIdx + 1);
+    // 디폴트: 현재 경로의 디렉토리
+    const lastSlash = path.lastIndexOf('/');
+    return path.substring(0, lastSlash + 1);
 }
 
-/* 가운데 (split-grid-right): 위/아래 두 카드를 균등 stretch */
-.triple-grid > .split-grid-right {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    height: 100%;
-}
-.triple-grid > .split-grid-right > .card {
-    flex: 1;
-    height: auto;
+function goToMain() {
+    goToPage(getSiteBase() + 'main.html');
 }
 
-/* 오른쪽 컨트롤 칸도 stretch */
-.triple-grid > div:not(.split-grid-right) {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-.triple-grid > div:not(.split-grid-right) > .card {
-    height: 100%;
+function goToRps(round) {
+    // 현재는 1v1만 지원 (rps-1v1.html). Phase 3에서 multi 추가 시 분기.
+    goToPage(getSiteBase() + 'pages/rps/rps-1v1.html', { round: round });
 }
 
-@media (max-width: 960px) {
-    .triple-grid {
-        grid-template-columns: 1fr;
+function goToPickOrder() {
+    goToPage(getSiteBase() + 'pages/rps/pick-order.html');
+}
+
+function goToDraft() {
+    // 현재는 2팀만 지원. Phase 3에서 multi 추가 시 분기.
+    goToPage(getSiteBase() + 'pages/draft/draft-2team.html');
+}
+
+function goToSide() {
+    goToPage(getSiteBase() + 'pages/matchup/side-pick.html');
+}
+
+function goToDone() {
+    goToPage(getSiteBase() + 'pages/done.html');
+}
+
+// ============================================================================
+// 5. 방 정보 / 게임 상태 로드
+// ============================================================================
+async function loadRoom() {
+    const client = initSupabase();
+    if (!client) return null;
+    const { data, error } = await client
+        .from('rooms')
+        .select('*')
+        .eq('room_code', ROOM_CODE)
+        .single();
+    if (error || !data) {
+        console.error('loadRoom error:', error);
+        return null;
     }
-    .triple-grid > .card,
-    .triple-grid > div > .card {
-        height: auto;
+    return data;
+}
+
+async function loadRpsGames() {
+    const client = initSupabase();
+    if (!client) return [];
+    const { data, error } = await client
+        .from('rps_games')
+        .select('*')
+        .eq('room_code', ROOM_CODE);
+    if (error) {
+        console.error('loadRpsGames error:', error);
+        return [];
+    }
+    return data || [];
+}
+
+async function loadDrafts() {
+    const client = initSupabase();
+    if (!client) return [];
+    const { data, error } = await client
+        .from('drafts')
+        .select('*')
+        .eq('room_code', ROOM_CODE)
+        .order('pick_number');
+    if (error) {
+        console.error('loadDrafts error:', error);
+        return [];
+    }
+    return data || [];
+}
+
+// ============================================================================
+// 6. 토큰/접속 검증
+// ============================================================================
+// URL 파라미터가 모두 있는지, role이 valid한지 검사
+function validateUrlParams() {
+    if (!ROOM_CODE || !ROLE || !TOKEN) {
+        return { ok: false, message: '잘못된 링크입니다. (필수 정보 누락)' };
+    }
+    if (ROLE !== 'leader1' && ROLE !== 'leader2') {
+        return { ok: false, message: '잘못된 역할입니다.' };
+    }
+    return { ok: true };
+}
+
+// 방을 로드하고 토큰이 일치하는지 검증. 성공 시 room 반환, 실패 시 null
+async function validateAndLoadRoom() {
+    const room = await loadRoom();
+    if (!room) return null;
+    const expectedToken = ROLE === 'leader1' ? room.leader1_token : room.leader2_token;
+    if (expectedToken !== TOKEN) return null;
+    return room;
+}
+
+// ============================================================================
+// 7. 상태 → 페이지 자동 라우팅
+// ============================================================================
+// 방 상태(status)에 따라 적절한 페이지로 자동 이동.
+// 가위바위보 결과까지 함께 보고 판단해야 하므로 rpsGames도 필요.
+function routeByStatus(room, rpsGames) {
+    const status = room.status;
+    const rps1 = rpsGames.find(r => r.round === 1);
+    const rps2 = rpsGames.find(r => r.round === 2);
+
+    if (status === 'waiting' || status === 'rps1') {
+        // 단계 E 변경: 가위바위보 결과 났으면 — 이긴 사람도, 진 사람도 둘 다 pick-order로
+        // (진 사람은 read-only로 같은 화면을 봄)
+        if (rps1 && rps1.winner && rps1.winner !== 'draw') {
+            return { page: 'pick-order' };
+        }
+        return { page: 'rps', extras: { round: 1 } };
+    }
+
+    if (status === 'drafting') {
+        return { page: 'draft' };
+    }
+
+    if (status === 'rps2') {
+        if (rps2 && rps2.winner && rps2.winner !== 'draw') {
+            if (rps2.winner === ROLE) return { page: 'side' };
+            return { page: 'rps', extras: { round: 2 } };
+        }
+        return { page: 'rps', extras: { round: 2 } };
+    }
+
+    if (status === 'done') {
+        return { page: 'done' };
+    }
+
+    // 알 수 없는 상태
+    return { page: 'rps', extras: { round: 1 } };
+}
+
+// 페이지 이름 → 실제 goToXxx 호출
+function goToPageByName(pageName, extras) {
+    extras = extras || {};
+    if (pageName === 'rps') return goToRps(extras.round || 1);
+    if (pageName === 'pick-order') return goToPickOrder();
+    if (pageName === 'draft') return goToDraft();
+    if (pageName === 'side') return goToSide();
+    if (pageName === 'done') return goToDone();
+    goToMain();
+}
+
+// ============================================================================
+// 8. 실시간 구독 (방, 가위바위보, 드래프트 변경 감지)
+// ============================================================================
+function subscribeRealtime(callbacks) {
+    const client = initSupabase();
+    if (!client) return null;
+
+    callbacks = callbacks || {};
+
+    const channel = client
+        .channel(`room:${ROOM_CODE}`)
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'rooms',
+            filter: `room_code=eq.${ROOM_CODE}`
+        }, (payload) => {
+            if (callbacks.onRoom) callbacks.onRoom(payload);
+        })
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'rps_games',
+            filter: `room_code=eq.${ROOM_CODE}`
+        }, (payload) => {
+            if (callbacks.onRps) callbacks.onRps(payload);
+        })
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'drafts',
+            filter: `room_code=eq.${ROOM_CODE}`
+        }, (payload) => {
+            if (callbacks.onDraft) callbacks.onDraft(payload);
+        })
+        .subscribe();
+    return channel;
+}
+
+// ============================================================================
+// 9. UI 유틸리티
+// ============================================================================
+function $(id) { return document.getElementById(id); }
+function show(id) { const el = $(id); if (el) el.style.display = ''; }
+function hide(id) { const el = $(id); if (el) el.style.display = 'none'; }
+
+function showToast(msg, duration) {
+    duration = duration || 2200;
+    let toast = $('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+function showFatalError(message) {
+    document.body.innerHTML = `
+        <div class="page-wrap">
+            <div class="card">
+                <h1>⚠️ 접속 오류</h1>
+                <div class="status-box danger">
+                    <div class="status-icon">⚠️</div>
+                    <div class="status-title">${message}</div>
+                    <div class="status-desc">관리자에게 새 링크를 받아주세요.</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 역할 이름 / 닉네임 헬퍼
+function getMyDisplayName(room) {
+    if (!room) return ROLE === 'leader1' ? '팀장 1' : '팀장 2';
+    if (ROLE === 'leader1') return room.leader1_name || '팀장 1';
+    return room.leader2_name || '팀장 2';
+}
+
+function getOtherDisplayName(room) {
+    if (!room) return ROLE === 'leader1' ? '팀장 2' : '팀장 1';
+    if (ROLE === 'leader1') return room.leader2_name || '팀장 2';
+    return room.leader1_name || '팀장 1';
+}
+
+function getRoleDisplay(role, room) {
+    if (!room) return role === 'leader1' ? '팀장 1' : '팀장 2';
+    if (role === 'leader1') return room.leader1_name || '팀장 1';
+    return room.leader2_name || '팀장 2';
+}
+
+// 가위바위보 선택 → 이모지/한글
+function rpsEmoji(choice) {
+    return choice === 'rock' ? '✊' : choice === 'paper' ? '✋' : choice === 'scissors' ? '✌️' : '?';
+}
+function rpsKorean(choice) {
+    return choice === 'rock' ? '바위' : choice === 'paper' ? '보' : choice === 'scissors' ? '가위' : '?';
+}
+
+// 단계 C 추가: HTML 이스케이프 (사용자 입력값을 innerHTML에 넣을 때 안전 보장)
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+}
+
+// 페이지 공통 헤더 렌더링 (단계 C: 간소화 — 팀장 이름 배지만 표시)
+// stageTitle, stageSubtitle 인자는 기존 호출부 호환을 위해 받지만 표시하지 않음
+function renderHeader(room, stageTitle, stageSubtitle) {
+    const header = $('headerArea');
+    if (!header) return;
+    const myName = getMyDisplayName(room);
+    const roleLabel = ROLE === 'leader1' ? '1팀 팀장' : '2팀 팀장';
+    header.innerHTML = `
+        <div class="card header-card" style="padding: 14px 18px;">
+            <span class="role-badge role-${ROLE}">👑 ${roleLabel} (${escapeHtml(myName)})</span>
+        </div>
+    `;
+}
+
+// ============================================================================
+// 단계 L: 팀장 선택/잠금 시스템
+// — 페이지 진입 시 "본인이 맞으십니까?" 확인 + claim_leader_seat RPC 호출
+// — 첫 사용자만 점유 가능. 다른 사용자가 같은 링크로 들어와도 거부.
+// — 재접속(새로고침)은 같은 client_id로 통과
+// ============================================================================
+const CLIENT_ID_KEY_PREFIX = 'loldabang_client_id_';
+const CLAIM_OK_KEY_PREFIX = 'loldabang_claim_ok_';
+
+function _getOrCreateClientId(roomCode, role) {
+    // 방+role 별로 client_id 저장 (다른 방/role 점유 가능)
+    const key = CLIENT_ID_KEY_PREFIX + roomCode + '_' + role;
+    let id = null;
+    try { id = localStorage.getItem(key); } catch (e) {}
+    if (!id) {
+        id = 'cid_' + Math.random().toString(36).slice(2) + '_' + Date.now();
+        try { localStorage.setItem(key, id); } catch (e) {}
+    }
+    return id;
+}
+
+function _isClaimVerified(roomCode, role) {
+    try {
+        return localStorage.getItem(CLAIM_OK_KEY_PREFIX + roomCode + '_' + role) === '1';
+    } catch (e) { return false; }
+}
+function _markClaimVerified(roomCode, role) {
+    try { localStorage.setItem(CLAIM_OK_KEY_PREFIX + roomCode + '_' + role, '1'); } catch (e) {}
+}
+
+// 페이지 진입 시 호출 — claim 화면을 보여주고 사용자 확인 후 claim RPC 호출
+// 성공하면 resolve(true), 실패/거부면 화면 교체 + resolve(false)
+// 이미 확인 완료된 경우 (localStorage 표식) 즉시 통과
+async function ensureLeaderClaim(room) {
+    if (!ROOM_CODE || !ROLE || !TOKEN) {
+        // URL 파라미터가 잘못된 경우는 별도 처리 (validateUrlParams)
+        return true;
+    }
+    if (_isClaimVerified(ROOM_CODE, ROLE)) {
+        // 이미 이 브라우저에서 claim 완료 — 빠른 통과
+        // 단, 서버에 한 번 더 확인해서 다른 곳에서 점유했는지 체크
+        const ok = await _tryClaim(/* silent */ true);
+        return ok;
+    }
+
+    // 첫 접속: 사용자에게 확인 화면 표시
+    const myName = (room && (ROLE === 'leader1' ? room.leader1_name : room.leader2_name)) || ROLE;
+    const userOk = await _showClaimConfirmScreen(myName);
+    if (!userOk) {
+        _showClaimRefused();
+        return false;
+    }
+    // RPC 호출
+    const ok = await _tryClaim(false);
+    return ok;
+}
+
+async function _tryClaim(silent) {
+    const client = initSupabase();
+    if (!client) {
+        if (!silent) showFatalError('Supabase 연결 실패');
+        return false;
+    }
+    const clientId = _getOrCreateClientId(ROOM_CODE, ROLE);
+    try {
+        const { data, error } = await client.rpc('claim_leader_seat', {
+            p_room_code: ROOM_CODE,
+            p_leader_token: TOKEN,
+            p_claim_id: clientId
+        });
+        if (error) {
+            if (!silent) showFatalError('접속 확인 실패: ' + error.message);
+            return false;
+        }
+        const r = data && data[0];
+        if (!r || !r.success) {
+            if (!silent) _showClaimDenied(r ? r.message : '접속이 거부되었습니다.');
+            return false;
+        }
+        _markClaimVerified(ROOM_CODE, ROLE);
+        return true;
+    } catch (e) {
+        if (!silent) showFatalError('네트워크 오류: ' + (e && e.message ? e.message : e));
+        return false;
     }
 }
 
-/* 진 사람의 read-only 영역 - 상호작용 차단 */
-.is-readonly {
-    position: relative;
-    opacity: 0.85;
-    pointer-events: none;
+// 사용자에게 "본인이 맞으십니까?" 모달
+function _showClaimConfirmScreen(displayName) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.id = '_claimConfirmOverlay';
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:99999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);';
+        overlay.innerHTML = `
+            <div style="background:#fff; border-radius:14px; padding:24px 20px; max-width:380px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.25); text-align:center; font-family:'Pretendard',sans-serif;">
+                <div style="font-size:42px; margin-bottom:8px;">👑</div>
+                <h2 style="font-size:18px; margin-bottom:8px; color:#1f2937;">팀장 확인</h2>
+                <p style="font-size:13px; color:#4b5563; margin-bottom:8px;">아래 분이 본인이 맞으십니까?</p>
+                <div style="font-size:18px; font-weight:800; color:#0f172a; padding:14px; background:linear-gradient(135deg,#fef3c7,#fde68a); border:2px solid #fbbf24; border-radius:10px; margin-bottom:14px; word-break:break-all;">
+                    ${escapeHtml(displayName)}
+                </div>
+                <p style="font-size:11px; color:#dc2626; margin-bottom:14px;">⚠️ 본인이 아니라면 [아니요]를 눌러주세요.<br>한 번 [예]를 누르면 다른 사람은 들어올 수 없습니다.</p>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <button id="_claimNo" style="padding:12px; border:2px solid #e5e7eb; border-radius:10px; background:#fff; color:#6b7280; font-weight:700; cursor:pointer; font-family:inherit; font-size:14px;">❌ 아니요</button>
+                    <button id="_claimYes" style="padding:12px; border:none; border-radius:10px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; font-weight:800; cursor:pointer; font-family:inherit; font-size:14px;">✅ 예, 맞습니다</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        document.getElementById('_claimYes').onclick = () => { try { overlay.remove(); } catch(e){} resolve(true); };
+        document.getElementById('_claimNo').onclick  = () => { try { overlay.remove(); } catch(e){} resolve(false); };
+    });
 }
 
-.is-readonly-banner {
-    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-    color: var(--text-muted);
-    padding: 10px 14px;
-    border-radius: 8px;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 700;
-    margin-bottom: 12px;
+function _showClaimDenied(message) {
+    document.body.innerHTML = `
+        <div class="page-wrap">
+            <div class="card" style="text-align:center; padding:40px 24px;">
+                <div style="font-size:56px; margin-bottom:8px;">🚫</div>
+                <h1 style="border-bottom:none; padding-bottom:0; color:#dc2626;">접속 거부</h1>
+                <p style="font-size:14px; color:#4b5563; margin-top:12px;">${escapeHtml(message || '이미 다른 사람이 이 팀장으로 접속해 있습니다.')}</p>
+                <p style="font-size:12px; color:#9ca3af; margin-top:20px;">잘못 접속하셨다면 이 창은 닫으셔도 됩니다.</p>
+            </div>
+        </div>
+    `;
 }
 
-/* 팀 박스 (세로 형태) — pick-order/draft-2team에서 공통 사용 */
-.team-vbox-row {
-    padding: 8px 12px;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 13px;
-    color: var(--text-main);
-    margin-bottom: 6px;
-}
-.team-vbox-row:last-child { margin-bottom: 0; }
-.team-vbox-row.leader {
-    background: linear-gradient(135deg, #fffbeb, #fef3c7);
-    border-color: var(--warning);
-    font-weight: 800;
-    color: #92400e;
-}
-.team-vbox-row.empty {
-    color: var(--text-muted);
-    font-style: italic;
-    border-style: dashed;
-    background: #fafafa;
-}
-
-/* ===== 반응형 (작은 화면) ===== */
-@media (max-width: 480px) {
-    body {
-        padding: 12px;
-    }
-    .card {
-        padding: 20px;
-    }
-    h1 {
-        font-size: 18px;
-        letter-spacing: 1px;
-    }
-}
-
-/* ============================================================================
-   단계 I: 멤버 점수 뱃지
-   ============================================================================ */
-.member-score-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 26px;
-    height: 22px;
-    padding: 0 7px;
-    margin-left: 6px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    color: #fff;
-    border-radius: 11px;
-    font-size: 11px;
-    font-weight: 800;
-    box-shadow: 0 1px 3px rgba(99,102,241,0.3);
-    flex-shrink: 0;
-    vertical-align: middle;
-    letter-spacing: 0.3px;
-}
-
-/* 팀 박스 row 내부 정렬 (멤버 이름 + 점수 뱃지) */
-.team-vbox-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-}
-
-.team-vbox-row.leader {
-    /* 팀장 행 — 강조 */
-}
-
-.team-vbox-row > span:first-child {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* 멤버 미리보기 row */
-.member-preview-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-}
-
-.member-preview-row .member-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* draft-2team의 member-btn 안 이름+점수 wrap */
-.member-btn .member-name-wrap {
-    display: inline-flex;
-    align-items: center;
-    flex: 1;
-    overflow: hidden;
-}
-
-.member-btn .member-name-wrap > .member-score-badge {
-    margin-left: 8px;
-}
-
-/* done.html team-member 행 (점수 뱃지와 정렬) */
-.team-member {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-}
-
-.team-member > span {
-    flex: 1;
-}
-
-/* done.html 팀 합산 점수 */
-.team-total {
-    display: inline-block;
-    margin-left: 8px;
-    padding: 3px 10px;
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
-    color: #92400e;
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 800;
-    border: 1px solid #fbbf24;
+function _showClaimRefused() {
+    document.body.innerHTML = `
+        <div class="page-wrap">
+            <div class="card" style="text-align:center; padding:40px 24px;">
+                <div style="font-size:56px; margin-bottom:8px;">👋</div>
+                <h1 style="border-bottom:none; padding-bottom:0; color:#4b5563;">접속하지 않으셨습니다</h1>
+                <p style="font-size:14px; color:#4b5563; margin-top:12px;">본인이 아니시군요. 본인이신 팀장께 링크를 전달해주세요.</p>
+                <p style="font-size:12px; color:#9ca3af; margin-top:20px;">이 창은 닫으셔도 됩니다.</p>
+            </div>
+        </div>
+    `;
 }
