@@ -286,9 +286,15 @@
             list.innerHTML = '<div class="member-preview-row" style="color:var(--text-muted); font-style:italic;">멤버 정보가 없습니다.</div>';
             return;
         }
-        list.innerHTML = members.map(m =>
-            `<div class="member-preview-row">${escapeHtml(m)}</div>`
-        ).join('');
+        // 단계 I: members가 {name, score} 객체 배열
+        list.innerHTML = members.map(m => {
+            const name = (m && typeof m === 'object') ? (m.name || '') : String(m);
+            const score = (m && typeof m === 'object') ? m.score : null;
+            const scoreHtml = (score !== null && score !== undefined && score !== '')
+                ? `<span class="member-score-badge">${score}</span>`
+                : '';
+            return `<div class="member-preview-row"><span class="member-name">${escapeHtml(name)}</span>${scoreHtml}</div>`;
+        }).join('');
     }
 
     function renderTeams() {
@@ -296,20 +302,25 @@
         const otherTeamLabel = ROLE === 'leader1' ? '2팀' : '1팀';
         const myLeaderName = ROLE === 'leader1' ? currentRoom.leader1_name : currentRoom.leader2_name;
         const otherLeaderName = ROLE === 'leader1' ? currentRoom.leader2_name : currentRoom.leader1_name;
+        // 단계 I: 팀장 점수
+        const myLeaderScore = ROLE === 'leader1' ? currentRoom.leader1_score : currentRoom.leader2_score;
+        const otherLeaderScore = ROLE === 'leader1' ? currentRoom.leader2_score : currentRoom.leader1_score;
 
         $('myTeamHeader').innerText = `🏆 내 팀 (${myTeamLabel})`;
         $('otherTeamHeader').innerText = `🤝 상대 팀 (${otherTeamLabel})`;
 
-        const buildBox = (leaderName) => {
-            let html = `<div class="team-vbox-row leader">👑 ${escapeHtml(leaderName || '(미정)')}</div>`;
+        const buildBox = (leaderName, leaderScore) => {
+            const scoreHtml = (leaderScore !== null && leaderScore !== undefined && leaderScore !== '')
+                ? `<span class="member-score-badge">${leaderScore}</span>` : '';
+            let html = `<div class="team-vbox-row leader"><span>👑 ${escapeHtml(leaderName || '(미정)')}</span>${scoreHtml}</div>`;
             for (let i = 0; i < 4; i++) {
                 html += `<div class="team-vbox-row empty">(픽 대기)</div>`;
             }
             return html;
         };
 
-        $('myTeamBox').innerHTML = buildBox(myLeaderName);
-        $('otherTeamBox').innerHTML = buildBox(otherLeaderName);
+        $('myTeamBox').innerHTML = buildBox(myLeaderName, myLeaderScore);
+        $('otherTeamBox').innerHTML = buildBox(otherLeaderName, otherLeaderScore);
     }
 
     function renderPickOrderControls() {
