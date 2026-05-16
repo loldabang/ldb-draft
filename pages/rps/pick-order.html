@@ -216,6 +216,10 @@
             return;
         }
 
+        // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
+        const claimed = await ensureLeaderClaim(currentRoom);
+        if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
+
         // 1차 가위바위보 결과 확인
         const rpsGames = await loadRpsGames();
         const rps1 = rpsGames.find(g => g.round === 1);
