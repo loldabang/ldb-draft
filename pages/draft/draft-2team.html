@@ -313,6 +313,10 @@
             return;
         }
 
+        // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
+        const claimed = await ensureLeaderClaim(currentRoom);
+        if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
+
         // 상태 검증
         if (currentRoom.status !== 'drafting') {
             // 다른 단계라면 main.html로
