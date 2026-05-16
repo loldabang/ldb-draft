@@ -260,6 +260,10 @@
             return;
         }
 
+        // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
+        const claimed = await ensureLeaderClaim(currentRoom);
+        if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
+
         // 현재 단계 검증 (잘못된 시점에 접근한 경우 main.html로)
         if (!isCurrentRoundValid()) {
             goToMain();
