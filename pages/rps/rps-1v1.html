@@ -286,7 +286,28 @@
                 }
             },
             onRps: async () => {
+                const prevWinner = currentRps && currentRps.winner;
                 await loadRps();
+                // 단계 H: realtime 이벤트로도 비김 감지 (양 팀장 모두 표시)
+                // — SQL이 1.5초 대기 후 reset하므로 winner='draw' 상태가 잠시 유지됨
+                if (currentRps && currentRps.winner === 'draw' && prevWinner !== 'draw') {
+                    const drawKey = 'draw_' + ROUND + '_' + (currentRps.leader1_choice || '') + '_' + (currentRps.leader2_choice || '');
+                    if (lastWinnerSeen !== drawKey) {
+                        lastWinnerSeen = drawKey;
+                        showToast('🤝 비겼습니다! 다시 시작합니다.', 2800);
+                    }
+                    // 화면 안내
+                    disableButtons();
+                    show('waitingBox');
+                    const wd = $('waitingDesc');
+                    if (wd) wd.innerHTML = '🤝 <strong>비겼습니다!</strong> 잠시 후 자동으로 다시 시작됩니다...';
+                    // pending 정리
+                    pendingChoice = null;
+                    const area = $('confirmRpsArea');
+                    if (area) area.style.display = 'none';
+                    document.querySelectorAll('.rps-btn').forEach(b => b.classList.remove('pending'));
+                    return;
+                }
                 renderRps();
             }
         });
