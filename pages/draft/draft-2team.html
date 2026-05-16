@@ -601,30 +601,37 @@
         const grid = $('membersGrid');
         grid.innerHTML = '';
 
-        members.forEach(m => {
+        // 단계 I: members가 객체 배열 {name, score}
+        members.forEach(rawM => {
+            const memberName = (rawM && typeof rawM === 'object') ? (rawM.name || '') : String(rawM);
+            const memberScore = (rawM && typeof rawM === 'object') ? rawM.score : null;
+
             const btn = document.createElement('button');
             btn.className = 'member-btn';
             btn.type = 'button';
 
-            const isLeader = m === leader1Name || m === leader2Name;
-            const isMine = m === myName;
-            const pickedBy = pickedMap[m];
+            const isLeader = memberName === leader1Name || memberName === leader2Name;
+            const isMine = memberName === myName;
+            const pickedBy = pickedMap[memberName];
+
+            // 점수 뱃지 HTML
+            const scoreHtml = (memberScore !== null && memberScore !== undefined && memberScore !== '')
+                ? `<span class="member-score-badge">${memberScore}</span>` : '';
 
             if (isLeader) {
                 btn.classList.add('is-leader');
                 if (isMine) btn.classList.add('is-mine');
-                const teamLabel = m === leader1Name ? '1팀 팀장' : '2팀 팀장';
-                btn.innerHTML = `👑 ${escapeHtml(m)}<span class="leader-tag">${teamLabel}</span>`;
+                const teamLabel = memberName === leader1Name ? '1팀 팀장' : '2팀 팀장';
+                btn.innerHTML = `<span class="member-name-wrap">👑 ${escapeHtml(memberName)}${scoreHtml}</span><span class="leader-tag">${teamLabel}</span>`;
                 btn.disabled = true;
             } else if (pickedBy) {
                 btn.classList.add(`picked-${pickedBy}`);
                 const teamLabel = pickedBy === 'leader1' ? '1팀' : '2팀';
-                btn.innerHTML = `${escapeHtml(m)}<span class="pick-tag">→ ${teamLabel}</span>`;
+                btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span><span class="pick-tag">→ ${teamLabel}</span>`;
                 btn.disabled = true;
             } else if (isMyTurn) {
-                // 단계 E/F: 다중 선택 지원 + 항상 뱃지 표시
-                btn.innerText = m;
-                const orderIdx = pendingPicks.indexOf(m);
+                btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
+                const orderIdx = pendingPicks.indexOf(memberName);
                 if (orderIdx !== -1) {
                     btn.classList.add('is-selected');
                     const badge = document.createElement('span');
@@ -632,9 +639,9 @@
                     badge.innerText = _getMyAllowedPicks() > 1 ? String(orderIdx + 1) : '✓';
                     btn.appendChild(badge);
                 }
-                btn.onclick = () => onMemberSelect(m);
+                btn.onclick = () => onMemberSelect(memberName);
             } else {
-                btn.innerText = m;
+                btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
                 btn.disabled = true;
             }
             grid.appendChild(btn);
@@ -648,6 +655,9 @@
         const otherTeamLabel = ROLE === 'leader1' ? '2팀' : '1팀';
         const myLeaderName = ROLE === 'leader1' ? currentRoom.leader1_name : currentRoom.leader2_name;
         const otherLeaderName = ROLE === 'leader1' ? currentRoom.leader2_name : currentRoom.leader1_name;
+        // 단계 I: 팀장 점수
+        const myLeaderScore = ROLE === 'leader1' ? currentRoom.leader1_score : currentRoom.leader2_score;
+        const otherLeaderScore = ROLE === 'leader1' ? currentRoom.leader2_score : currentRoom.leader1_score;
         const myRole = ROLE; // 'leader1' or 'leader2'
         const otherRole = ROLE === 'leader1' ? 'leader2' : 'leader1';
 
@@ -657,11 +667,22 @@
         $('myTeamHeader').innerText = `🏆 내 팀 (${myTeamLabel}) — ${1 + myPicks.length}명`;
         $('otherTeamHeader').innerText = `🤝 상대 팀 (${otherTeamLabel}) — ${1 + otherPicks.length}명`;
 
-        const buildBox = (leaderName, picks) => {
-            let html = `<div class="team-vbox-row leader">👑 ${escapeHtml(leaderName || '(미정)')}</div>`;
+        // 단계 I: 멤버 이름 → 점수 lookup 맵
+        const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
+        const scoreMap = {};
+        members.forEach(m => {
+            if (m && typeof m === 'object' && m.name) scoreMap[m.name] = m.score;
+        });
+
+        const scoreBadge = (sc) => (sc !== null && sc !== undefined && sc !== '')
+            ? `<span class="member-score-badge">${sc}</span>` : '';
+
+        const buildBox = (leaderName, leaderScore, picks) => {
+            let html = `<div class="team-vbox-row leader"><span>👑 ${escapeHtml(leaderName || '(미정)')}</span>${scoreBadge(leaderScore)}</div>`;
             for (let i = 0; i < 4; i++) {
                 if (i < picks.length) {
-                    html += `<div class="team-vbox-row">${escapeHtml(picks[i])}</div>`;
+                    const sc = scoreMap[picks[i]];
+                    html += `<div class="team-vbox-row"><span>${escapeHtml(picks[i])}</span>${scoreBadge(sc)}</div>`;
                 } else {
                     html += `<div class="team-vbox-row empty">(픽 대기)</div>`;
                 }
@@ -669,8 +690,8 @@
             return html;
         };
 
-        $('myTeamBox').innerHTML = buildBox(myLeaderName, myPicks);
-        $('otherTeamBox').innerHTML = buildBox(otherLeaderName, otherPicks);
+        $('myTeamBox').innerHTML = buildBox(myLeaderName, myLeaderScore, myPicks);
+        $('otherTeamBox').innerHTML = buildBox(otherLeaderName, otherLeaderScore, otherPicks);
     }
     </script>
 </body>
