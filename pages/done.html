@@ -208,14 +208,39 @@
         const redTeamLabel = blueSide === 'leader1' ? '2팀' : '1팀';
         $('doneSubtitle').innerText = `🟦 블루: ${blueTeamLabel}  |  🟥 레드: ${redTeamLabel}`;
 
+        // 단계 I: 점수 lookup + 팀장 점수
+        const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
+        const scoreMap = {};
+        members.forEach(m => {
+            if (m && typeof m === 'object' && m.name) scoreMap[m.name] = m.score;
+        });
+        scoreMap[currentRoom.leader1_name] = currentRoom.leader1_score;
+        scoreMap[currentRoom.leader2_name] = currentRoom.leader2_score;
+
+        const scoreBadgeHtml = (name) => {
+            const sc = scoreMap[name];
+            return (sc !== null && sc !== undefined && sc !== '')
+                ? `<span class="member-score-badge">${sc}</span>` : '';
+        };
+
+        // 팀 합산 점수
+        const team1Total = team1Members.reduce((sum, n) => {
+            const s = scoreMap[n];
+            return sum + (typeof s === 'number' ? s : 0);
+        }, 0);
+        const team2Total = team2Members.reduce((sum, n) => {
+            const s = scoreMap[n];
+            return sum + (typeof s === 'number' ? s : 0);
+        }, 0);
+
         $('finalTeamsDisplay').innerHTML = `
             <div class="team-box team1 ${team1Class}">
-                <div class="team-title">🏆 1팀 ${team1Badge}</div>
-                ${team1Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${m}</div>`).join('')}
+                <div class="team-title">🏆 1팀 ${team1Badge} <span class="team-total">합산 ${team1Total}점</span></div>
+                ${team1Members.map((m, i) => `<div class="team-member${i===0?' leader':''}"><span>${escapeHtml(m)}</span>${scoreBadgeHtml(m)}</div>`).join('')}
             </div>
             <div class="team-box team2 ${team2Class}">
-                <div class="team-title">🏆 2팀 ${team2Badge}</div>
-                ${team2Members.map((m, i) => `<div class="team-member${i===0?' leader':''}">${m}</div>`).join('')}
+                <div class="team-title">🏆 2팀 ${team2Badge} <span class="team-total">합산 ${team2Total}점</span></div>
+                ${team2Members.map((m, i) => `<div class="team-member${i===0?' leader':''}"><span>${escapeHtml(m)}</span>${scoreBadgeHtml(m)}</div>`).join('')}
             </div>
         `;
     }
