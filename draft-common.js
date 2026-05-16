@@ -351,3 +351,143 @@ function renderHeader(room, stageTitle, stageSubtitle) {
         </div>
     `;
 }
+
+// ============================================================================
+// 단계 L: 팀장 선택/잠금 시스템
+// — 페이지 진입 시 "본인이 맞으십니까?" 확인 + claim_leader_seat RPC 호출
+// — 첫 사용자만 점유 가능. 다른 사용자가 같은 링크로 들어와도 거부.
+// — 재접속(새로고침)은 같은 client_id로 통과
+// ============================================================================
+const CLIENT_ID_KEY_PREFIX = 'loldabang_client_id_';
+const CLAIM_OK_KEY_PREFIX = 'loldabang_claim_ok_';
+
+function _getOrCreateClientId(roomCode, role) {
+    // 방+role 별로 client_id 저장 (다른 방/role 점유 가능)
+    const key = CLIENT_ID_KEY_PREFIX + roomCode + '_' + role;
+    let id = null;
+    try { id = localStorage.getItem(key); } catch (e) {}
+    if (!id) {
+        id = 'cid_' + Math.random().toString(36).slice(2) + '_' + Date.now();
+        try { localStorage.setItem(key, id); } catch (e) {}
+    }
+    return id;
+}
+
+function _isClaimVerified(roomCode, role) {
+    try {
+        return localStorage.getItem(CLAIM_OK_KEY_PREFIX + roomCode + '_' + role) === '1';
+    } catch (e) { return false; }
+}
+function _markClaimVerified(roomCode, role) {
+    try { localStorage.setItem(CLAIM_OK_KEY_PREFIX + roomCode + '_' + role, '1'); } catch (e) {}
+}
+
+// 페이지 진입 시 호출 — claim 화면을 보여주고 사용자 확인 후 claim RPC 호출
+// 성공하면 resolve(true), 실패/거부면 화면 교체 + resolve(false)
+// 이미 확인 완료된 경우 (localStorage 표식) 즉시 통과
+async function ensureLeaderClaim(room) {
+    if (!ROOM_CODE || !ROLE || !TOKEN) {
+        // URL 파라미터가 잘못된 경우는 별도 처리 (validateUrlParams)
+        return true;
+    }
+    if (_isClaimVerified(ROOM_CODE, ROLE)) {
+        // 이미 이 브라우저에서 claim 완료 — 빠른 통과
+        // 단, 서버에 한 번 더 확인해서 다른 곳에서 점유했는지 체크
+        const ok = await _tryClaim(/* silent */ true);
+        return ok;
+    }
+
+    // 첫 접속: 사용자에게 확인 화면 표시
+    const myName = (room && (ROLE === 'leader1' ? room.leader1_name : room.leader2_name)) || ROLE;
+    const userOk = await _showClaimConfirmScreen(myName);
+    if (!userOk) {
+        _showClaimRefused();
+        return false;
+    }
+    // RPC 호출
+    const ok = await _tryClaim(false);
+    return ok;
+}
+
+async function _tryClaim(silent) {
+    const client = initSupabase();
+    if (!client) {
+        if (!silent) showFatalError('Supabase 연결 실패');
+        return false;
+    }
+    const clientId = _getOrCreateClientId(ROOM_CODE, ROLE);
+    try {
+        const { data, error } = await client.rpc('claim_leader_seat', {
+            p_room_code: ROOM_CODE,
+            p_leader_token: TOKEN,
+            p_claim_id: clientId
+        });
+        if (error) {
+            if (!silent) showFatalError('접속 확인 실패: ' + error.message);
+            return false;
+        }
+        const r = data && data[0];
+        if (!r || !r.success) {
+            if (!silent) _showClaimDenied(r ? r.message : '접속이 거부되었습니다.');
+            return false;
+        }
+        _markClaimVerified(ROOM_CODE, ROLE);
+        return true;
+    } catch (e) {
+        if (!silent) showFatalError('네트워크 오류: ' + (e && e.message ? e.message : e));
+        return false;
+    }
+}
+
+// 사용자에게 "본인이 맞으십니까?" 모달
+function _showClaimConfirmScreen(displayName) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.id = '_claimConfirmOverlay';
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:99999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);';
+        overlay.innerHTML = `
+            <div style="background:#fff; border-radius:14px; padding:24px 20px; max-width:380px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.25); text-align:center; font-family:'Pretendard',sans-serif;">
+                <div style="font-size:42px; margin-bottom:8px;">👑</div>
+                <h2 style="font-size:18px; margin-bottom:8px; color:#1f2937;">팀장 확인</h2>
+                <p style="font-size:13px; color:#4b5563; margin-bottom:8px;">아래 분이 본인이 맞으십니까?</p>
+                <div style="font-size:18px; font-weight:800; color:#0f172a; padding:14px; background:linear-gradient(135deg,#fef3c7,#fde68a); border:2px solid #fbbf24; border-radius:10px; margin-bottom:14px; word-break:break-all;">
+                    ${escapeHtml(displayName)}
+                </div>
+                <p style="font-size:11px; color:#dc2626; margin-bottom:14px;">⚠️ 본인이 아니라면 [아니요]를 눌러주세요.<br>한 번 [예]를 누르면 다른 사람은 들어올 수 없습니다.</p>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <button id="_claimNo" style="padding:12px; border:2px solid #e5e7eb; border-radius:10px; background:#fff; color:#6b7280; font-weight:700; cursor:pointer; font-family:inherit; font-size:14px;">❌ 아니요</button>
+                    <button id="_claimYes" style="padding:12px; border:none; border-radius:10px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; font-weight:800; cursor:pointer; font-family:inherit; font-size:14px;">✅ 예, 맞습니다</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        document.getElementById('_claimYes').onclick = () => { try { overlay.remove(); } catch(e){} resolve(true); };
+        document.getElementById('_claimNo').onclick  = () => { try { overlay.remove(); } catch(e){} resolve(false); };
+    });
+}
+
+function _showClaimDenied(message) {
+    document.body.innerHTML = `
+        <div class="page-wrap">
+            <div class="card" style="text-align:center; padding:40px 24px;">
+                <div style="font-size:56px; margin-bottom:8px;">🚫</div>
+                <h1 style="border-bottom:none; padding-bottom:0; color:#dc2626;">접속 거부</h1>
+                <p style="font-size:14px; color:#4b5563; margin-top:12px;">${escapeHtml(message || '이미 다른 사람이 이 팀장으로 접속해 있습니다.')}</p>
+                <p style="font-size:12px; color:#9ca3af; margin-top:20px;">잘못 접속하셨다면 이 창은 닫으셔도 됩니다.</p>
+            </div>
+        </div>
+    `;
+}
+
+function _showClaimRefused() {
+    document.body.innerHTML = `
+        <div class="page-wrap">
+            <div class="card" style="text-align:center; padding:40px 24px;">
+                <div style="font-size:56px; margin-bottom:8px;">👋</div>
+                <h1 style="border-bottom:none; padding-bottom:0; color:#4b5563;">접속하지 않으셨습니다</h1>
+                <p style="font-size:14px; color:#4b5563; margin-top:12px;">본인이 아니시군요. 본인이신 팀장께 링크를 전달해주세요.</p>
+                <p style="font-size:12px; color:#9ca3af; margin-top:20px;">이 창은 닫으셔도 됩니다.</p>
+            </div>
+        </div>
+    `;
+}
