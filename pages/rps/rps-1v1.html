@@ -285,29 +285,52 @@
                     goToMain();
                 }
             },
-            onRps: async () => {
-                const prevWinner = currentRps && currentRps.winner;
-                await loadRps();
-                // 단계 H: realtime 이벤트로도 비김 감지 (양 팀장 모두 표시)
-                // — SQL이 1.5초 대기 후 reset하므로 winner='draw' 상태가 잠시 유지됨
-                if (currentRps && currentRps.winner === 'draw' && prevWinner !== 'draw') {
-                    const drawKey = 'draw_' + ROUND + '_' + (currentRps.leader1_choice || '') + '_' + (currentRps.leader2_choice || '');
+            onRps: async (payload) => {
+                // 단계 H 수정: payload.new를 직접 사용 (race condition 없이 'draw' 캐치)
+                // SQL이 비김 즉시 reset해도 realtime은 winner='draw' UPDATE와 reset UPDATE를
+                // 별도 이벤트로 전달함. payload.new는 그 순간의 정확한 상태를 담고 있음.
+                let newRps = (payload && payload.new) ? payload.new : null;
+                if (!newRps) {
+                    await loadRps();
+                    newRps = currentRps;
+                } else {
+                    // currentRps 갱신
+                    if (newRps.round === ROUND) currentRps = newRps;
+                }
+
+                // payload가 ROUND와 일치하지 않으면 무시 (다른 라운드 이벤트)
+                if (newRps.round !== ROUND) {
+                    renderRps();
+                    return;
+                }
+
+                // 비김 감지 — payload.new에서 직접 확인
+                if (newRps.winner === 'draw') {
+                    const drawKey = 'draw_' + ROUND + '_' + (newRps.leader1_choice || '') + '_' + (newRps.leader2_choice || '');
                     if (lastWinnerSeen !== drawKey) {
                         lastWinnerSeen = drawKey;
-                        showToast('🤝 비겼습니다! 다시 시작합니다.', 2800);
+                        showToast('🤝 비겼습니다! 다시 시작합니다.', 2500);
                     }
-                    // 화면 안내
                     disableButtons();
                     show('waitingBox');
                     const wd = $('waitingDesc');
-                    if (wd) wd.innerHTML = '🤝 <strong>비겼습니다!</strong> 잠시 후 자동으로 다시 시작됩니다...';
+                    if (wd) {
+                        const emoji = ch => ({ rock: '✊', paper: '✋', scissors: '✌️' })[ch] || '?';
+                        wd.innerHTML = `🤝 <strong>비겼습니다!</strong><br>둘 다 ${emoji(newRps.leader1_choice)}<br>잠시 후 자동으로 다시 시작됩니다...`;
+                    }
                     // pending 정리
                     pendingChoice = null;
                     const area = $('confirmRpsArea');
                     if (area) area.style.display = 'none';
                     document.querySelectorAll('.rps-btn').forEach(b => b.classList.remove('pending'));
+                    // 1.5초 후 자연스럽게 reset UI로 (다음 reset 이벤트가 보통 더 빨리 옴)
+                    setTimeout(() => {
+                        loadRps().then(() => renderRps()).catch(() => {});
+                    }, 1500);
                     return;
                 }
+
+                // 정상 흐름
                 renderRps();
             }
         });
