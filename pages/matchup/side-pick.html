@@ -126,6 +126,10 @@
             return;
         }
 
+        // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
+        const claimed = await ensureLeaderClaim(currentRoom);
+        if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
+
         // 검증: status=rps2이고, 2차 가위바위보 승자가 본인이어야 함
         const rpsGames = await loadRpsGames();
         const rps2 = rpsGames.find(g => g.round === 2);
