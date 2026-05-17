@@ -111,6 +111,13 @@
     let currentRoom = null;
     let isProcessing = false;
 
+    // 단계 O-2 N팀 전용
+    let _myMatchup = null;        // 본인이 속한 매칭 row
+    let _myMatchupRps = null;     // 본인 매칭의 rps_games row
+    let _myRole = null;           // 'a' 또는 'b' (매칭 안에서 본인이 team_a인지 b인지)
+    let _myTeamIndex = null;
+    let _sideRpsChannel = null;
+
     (async function init() {
         const v = validateUrlParams();
         if (!v.ok) { showFatalError(v.message); return; }
@@ -139,28 +146,97 @@
             } catch (e) { console.warn('teams load failed:', e); }
         }
 
-        // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
+        // 단계 L: 팀장 잠금
         const claimed = await ensureLeaderClaim(currentRoom);
-        if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
+        if (!claimed) return;
 
-        // 검증: status=rps2이고, 2차 가위바위보 승자가 본인이어야 함
-        const rpsGames = await loadRpsGames();
-        const rps2 = rpsGames.find(g => g.round === 2);
-        const validStatus = currentRoom.status === 'rps2';
-        const isWinner = rps2 && rps2.winner && rps2.winner === ROLE;
+        const teamCount = currentRoom.team_count || 2;
+        _myTeamIndex = getMyTeamIndex();
 
-        if (!validStatus || !isWinner) {
-            goToMain();
+        if (teamCount === 2) {
+            // ─── 기존 2팀 흐름 ─────────────────────────────────
+            const rpsGames = await loadRpsGames();
+            const rps2 = rpsGames.find(g => g.round === 2);
+            const validStatus = currentRoom.status === 'rps2';
+            const isWinner = rps2 && rps2.winner && rps2.winner === ROLE;
+
+            if (!validStatus || !isWinner) {
+                goToMain();
+                return;
+            }
+
+            renderHeader(currentRoom,
+                '🏆 STEP 4: 진영 선택',
+                '블루/레드 진영을 선택하세요.'
+            );
+
+            subscribeRealtime({
+                onRoom: (payload) => {
+                    if (payload.eventType === 'DELETE') {
+                        showFatalError('관리자가 방을 닫았습니다.');
+                        return;
+                    }
+                    currentRoom = payload.new;
+                    if (currentRoom.status === 'done') {
+                        goToDone();
+                    }
+                }
+            });
+
+            hide('loadingView');
+            show('sideView');
             return;
         }
 
+        // ─── 단계 O-2: N팀 매칭 진영 가위바위보 ─────────────────
+        if (currentRoom.status !== 'side_rps' && currentRoom.status !== 'done') {
+            // 다른 단계라면 main으로
+            goToMain();
+            return;
+        }
+        await _initNTeamSidePick();
+    })();
+
+    // ============================================================================
+    // 단계 O-2: N팀 매칭 진영 가위바위보 + 진영 선택
+    // ============================================================================
+    async function _initNTeamSidePick() {
         renderHeader(currentRoom,
-            '🏆 STEP 4: 진영 선택',
-            '블루/레드 진영을 선택하세요.'
+            '🥊 STEP 3: 진영 가위바위보',
+            '본인 매칭의 가위바위보를 진행하세요.'
         );
 
-        subscribeRealtime({
-            onRoom: (payload) => {
+        const ok = await _loadMyMatchup();
+        if (!ok) {
+            showFatalError('본인이 속한 매칭을 찾을 수 없습니다.');
+            return;
+        }
+
+        // 실시간 구독
+        const client = initSupabase();
+        _sideRpsChannel = client.channel('side_rps_' + ROOM_CODE)
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'matchups',
+                filter: `room_code=eq.${ROOM_CODE}`
+            }, async (payload) => {
+                if (payload.new && payload.new.id === (_myMatchup && _myMatchup.id)) {
+                    _myMatchup = payload.new;
+                    renderNTeamSidePick();
+                }
+            })
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'rps_games',
+                filter: `room_code=eq.${ROOM_CODE}`
+            }, (payload) => {
+                if (payload.new && _myMatchup && payload.new.matchup_id === _myMatchup.id) {
+                    _myMatchupRps = payload.new;
+                    renderNTeamSidePick();
+                }
+            })
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'rooms',
+                filter: `room_code=eq.${ROOM_CODE}`
+            }, (payload) => {
                 if (payload.eventType === 'DELETE') {
                     showFatalError('관리자가 방을 닫았습니다.');
                     return;
@@ -169,13 +245,243 @@
                 if (currentRoom.status === 'done') {
                     goToDone();
                 }
-            }
-        });
+            })
+            .subscribe();
 
         hide('loadingView');
-        show('sideView');
-    })();
+        renderNTeamSidePick();
+    }
 
+    async function _loadMyMatchup() {
+        const client = initSupabase();
+        try {
+            const { data: matchups } = await client
+                .from('matchups')
+                .select('*')
+                .eq('room_code', ROOM_CODE);
+            if (!matchups) return false;
+            _myMatchup = matchups.find(m =>
+                m.team_a_index === _myTeamIndex || m.team_b_index === _myTeamIndex
+            );
+            if (!_myMatchup) return false;
+            _myRole = (_myMatchup.team_a_index === _myTeamIndex) ? 'a' : 'b';
+
+            const { data: rps } = await client
+                .from('rps_games')
+                .select('*')
+                .eq('matchup_id', _myMatchup.id)
+                .maybeSingle();
+            _myMatchupRps = rps || null;
+            return true;
+        } catch (e) {
+            console.error('loadMyMatchup failed:', e);
+            return false;
+        }
+    }
+
+    function renderNTeamSidePick() {
+        // sideView 자리에 동적 화면 렌더링
+        const view = document.getElementById('sideView');
+        if (!view) return;
+        view.style.display = 'block';
+
+        const teamA = getTeamByIndex(_myMatchup.team_a_index);
+        const teamB = getTeamByIndex(_myMatchup.team_b_index);
+        const myTeam = getTeamByIndex(_myTeamIndex);
+        const oppTeamIdx = (_myTeamIndex === _myMatchup.team_a_index)
+            ? _myMatchup.team_b_index : _myMatchup.team_a_index;
+        const oppTeam = getTeamByIndex(oppTeamIdx);
+
+        // 진영 결정 완료
+        if (_myMatchup.blue_team_index) {
+            const blueTeam = getTeamByIndex(_myMatchup.blue_team_index);
+            const redTeamIdx = _myMatchup.blue_team_index === _myMatchup.team_a_index
+                ? _myMatchup.team_b_index : _myMatchup.team_a_index;
+            const redTeam = getTeamByIndex(redTeamIdx);
+            const iAmBlue = _myMatchup.blue_team_index === _myTeamIndex;
+            view.innerHTML = `<div class="card" style="text-align:center; padding:30px 20px;">
+                <div style="font-size:56px; margin-bottom:8px;">${iAmBlue ? '🟦' : '🟥'}</div>
+                <h1 style="border-bottom:none;">진영 결정 완료!</h1>
+                <p style="font-size:14px; margin:14px 0;">
+                    <strong>${blueTeam ? blueTeam.team_index : ''}팀 (${escapeHtml(blueTeam ? blueTeam.leader_name : '')})</strong>: 🟦 BLUE<br>
+                    <strong>${redTeam ? redTeam.team_index : ''}팀 (${escapeHtml(redTeam ? redTeam.leader_name : '')})</strong>: 🟥 RED
+                </p>
+                <p style="color:#6b7280; font-size:12px;">다른 매칭이 끝날 때까지 기다려주세요...</p>
+                <div class="spinner" style="margin:20px auto 0;"></div>
+            </div>`;
+            return;
+        }
+
+        const winner = _myMatchupRps ? _myMatchupRps.winner : null;
+        const iWon = winner && (
+            (winner === 'leader1' && _myRole === 'a') ||
+            (winner === 'leader2' && _myRole === 'b')
+        );
+        const iLost = winner && winner !== 'draw' && !iWon;
+
+        // 가위바위보 진행 중
+        if (!winner || winner === 'draw') {
+            const myChoice = _myRole === 'a'
+                ? (_myMatchupRps && _myMatchupRps.leader1_choice)
+                : (_myMatchupRps && _myMatchupRps.leader2_choice);
+            const oppChoice = _myRole === 'a'
+                ? (_myMatchupRps && _myMatchupRps.leader2_choice)
+                : (_myMatchupRps && _myMatchupRps.leader1_choice);
+            const bothChosen = myChoice && oppChoice;
+
+            const emoji = ch => ({ rock: '✊', paper: '✋', scissors: '✌️' })[ch] || '';
+            const korean = ch => ({ rock: '바위', paper: '보', scissors: '가위' })[ch] || '';
+
+            const myChoiceHtml = myChoice
+                ? `<div style="font-size:42px;">${emoji(myChoice)}</div><div style="font-size:12px; color:#6b7280;">${korean(myChoice)}</div>`
+                : `<div style="font-size:18px; color:#9ca3af;">선택 대기</div>`;
+            const oppChoiceHtml = oppChoice
+                ? (bothChosen
+                    ? `<div style="font-size:42px;">${emoji(oppChoice)}</div><div style="font-size:12px; color:#6b7280;">${korean(oppChoice)}</div>`
+                    : `<div style="font-size:18px; color:#10b981; font-weight:800;">✅ 선택 완료</div>`)
+                : `<div style="font-size:18px; color:#9ca3af;">선택 대기</div>`;
+
+            view.innerHTML = `
+                <div class="card" style="padding:20px;">
+                    <div style="text-align:center; margin-bottom:14px;">
+                        <h2 style="font-size:16px; margin-bottom:4px;">🥊 매칭 ${_myMatchup.match_index}</h2>
+                        ${winner === 'draw' ? '<p style="color:#f59e0b; font-size:13px;">🤝 비김! 다시 시작합니다</p>' : '<p style="color:#6b7280; font-size:13px;">가위바위보로 진영 선택권을 정합니다</p>'}
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 50px 1fr; gap:10px; align-items:center; margin-bottom:18px;">
+                        <div style="text-align:center; padding:14px; background:linear-gradient(135deg, #fef3c7, #fde68a); border:2px solid #fbbf24; border-radius:12px;">
+                            <div style="font-size:13px; font-weight:800; margin-bottom:4px;">⭐ ${myTeam ? myTeam.team_index : ''}팀 (나)</div>
+                            <div style="font-size:12px; color:#6b7280; margin-bottom:10px;">${escapeHtml(myTeam ? myTeam.leader_name : '')}</div>
+                            ${myChoiceHtml}
+                        </div>
+                        <div style="text-align:center; font-size:20px; font-weight:900; color:#9ca3af;">VS</div>
+                        <div style="text-align:center; padding:14px; background:linear-gradient(135deg, #dbeafe, #93c5fd); border:2px solid #60a5fa; border-radius:12px;">
+                            <div style="font-size:13px; font-weight:800; margin-bottom:4px;">${oppTeam ? oppTeam.team_index : ''}팀</div>
+                            <div style="font-size:12px; color:#6b7280; margin-bottom:10px;">${escapeHtml(oppTeam ? oppTeam.leader_name : '')}</div>
+                            ${oppChoiceHtml}
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                        <button class="rps-choice-btn" data-choice="rock" type="button" ${myChoice && winner !== 'draw' ? 'disabled' : ''}
+                                style="padding:18px 8px; border:2px solid #e5e7eb; border-radius:12px; background:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
+                            <div style="font-size:32px;">✊</div>바위
+                        </button>
+                        <button class="rps-choice-btn" data-choice="scissors" type="button" ${myChoice && winner !== 'draw' ? 'disabled' : ''}
+                                style="padding:18px 8px; border:2px solid #e5e7eb; border-radius:12px; background:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
+                            <div style="font-size:32px;">✌️</div>가위
+                        </button>
+                        <button class="rps-choice-btn" data-choice="paper" type="button" ${myChoice && winner !== 'draw' ? 'disabled' : ''}
+                                style="padding:18px 8px; border:2px solid #e5e7eb; border-radius:12px; background:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
+                            <div style="font-size:32px;">✋</div>보
+                        </button>
+                    </div>
+                </div>
+            `;
+            view.querySelectorAll('.rps-choice-btn').forEach(btn => {
+                btn.onclick = () => onMatchupRpsChoice(btn.dataset.choice);
+            });
+            return;
+        }
+
+        // 가위바위보 종료 — 승자/패자에 따라
+        if (iWon) {
+            // 진영 선택 화면
+            view.innerHTML = `
+                <div class="card" style="padding:20px; text-align:center;">
+                    <div style="font-size:42px; margin-bottom:6px;">🏆</div>
+                    <h2 style="font-size:18px; margin-bottom:6px;">매칭 ${_myMatchup.match_index} 승리!</h2>
+                    <p style="font-size:13px; color:#6b7280; margin-bottom:18px;">진영을 선택해주세요.</p>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <button class="side-btn blue" data-blue="1" type="button">
+                            <div class="side-icon">🟦</div>
+                            <div class="side-label">BLUE</div>
+                            <div class="side-desc">내 팀을 블루 진영으로</div>
+                        </button>
+                        <button class="side-btn red" data-blue="0" type="button">
+                            <div class="side-icon">🟥</div>
+                            <div class="side-label">RED</div>
+                            <div class="side-desc">내 팀을 레드 진영으로</div>
+                        </button>
+                    </div>
+                </div>
+            `;
+            view.querySelectorAll('.side-btn').forEach(btn => {
+                btn.onclick = () => onChooseMatchupSide(btn.dataset.blue === '1');
+            });
+        } else if (iLost) {
+            // 패자 — 대기 화면
+            view.innerHTML = `
+                <div class="card" style="padding:30px 20px; text-align:center;">
+                    <div style="font-size:42px; margin-bottom:6px;">⏳</div>
+                    <h2 style="font-size:18px; margin-bottom:6px;">진영 선택 대기 중</h2>
+                    <p style="font-size:13px; color:#6b7280;">
+                        ${oppTeam ? oppTeam.team_index : ''}팀 (${escapeHtml(oppTeam ? oppTeam.leader_name : '')})이(가)<br>
+                        진영을 선택하고 있습니다.
+                    </p>
+                    <div class="spinner" style="margin:20px auto 0;"></div>
+                </div>
+            `;
+        }
+    }
+
+    async function onMatchupRpsChoice(choice) {
+        if (isProcessing) return;
+        isProcessing = true;
+        const client = initSupabase();
+        try {
+            const { data, error } = await client.rpc('make_matchup_rps_choice', {
+                p_room_code: ROOM_CODE,
+                p_leader_token: TOKEN,
+                p_matchup_id: _myMatchup.id,
+                p_choice: choice
+            });
+            if (error) {
+                showToast('오류: ' + error.message);
+            } else if (data && data[0] && !data[0].success) {
+                showToast(data[0].message || '실패');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('네트워크 오류');
+        }
+        isProcessing = false;
+    }
+
+    async function onChooseMatchupSide(takeBlue) {
+        if (isProcessing) return;
+        isProcessing = true;
+        document.querySelectorAll('.side-btn').forEach(b => b.disabled = true);
+        const client = initSupabase();
+        try {
+            const { data, error } = await client.rpc('set_matchup_blue', {
+                p_room_code: ROOM_CODE,
+                p_leader_token: TOKEN,
+                p_matchup_id: _myMatchup.id,
+                p_take_blue: takeBlue
+            });
+            if (error) {
+                showToast('오류: ' + error.message);
+                document.querySelectorAll('.side-btn').forEach(b => b.disabled = false);
+                isProcessing = false;
+                return;
+            }
+            if (data && data[0] && !data[0].success) {
+                showToast(data[0].message || '실패');
+                document.querySelectorAll('.side-btn').forEach(b => b.disabled = false);
+                isProcessing = false;
+                return;
+            }
+            showToast(takeBlue ? '🟦 BLUE 진영 선택!' : '🟥 RED 진영 선택!');
+        } catch (e) {
+            console.error(e);
+            showToast('네트워크 오류');
+            document.querySelectorAll('.side-btn').forEach(b => b.disabled = false);
+            isProcessing = false;
+        }
+    }
+
+    // ============================================================================
+    // 기존 2팀 흐름
+    // ============================================================================
     async function onChooseSide(takeBlue) {
         if (isProcessing) return;
         isProcessing = true;
