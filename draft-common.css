@@ -360,7 +360,8 @@ p {
    ============================================================================ */
 .draft-3col-grid {
     display: grid;
-    grid-template-columns: 280px 1fr 320px;
+    /* 단계 O-3 (fix #4): 중앙 너무 크지 않게, 양 옆 더 넓게 */
+    grid-template-columns: 320px minmax(260px, 1fr) 320px;
     gap: 12px;
     align-items: start;
 }
@@ -371,12 +372,12 @@ p {
     margin-bottom: 10px;
 }
 
-/* 큰 화면 — 오른쪽 영역 더 넓게 (상대 팀 많을 때) */
+/* 큰 화면 — 양 옆 더 넓게 (6/8팀 상대 팀 많을 때) */
 @media (min-width: 1400px) {
-    .draft-3col-grid { grid-template-columns: 300px 1fr 440px; }
+    .draft-3col-grid { grid-template-columns: 360px minmax(300px, 1fr) 400px; }
 }
 @media (min-width: 1700px) {
-    .draft-3col-grid { grid-template-columns: 320px 1fr 600px; }
+    .draft-3col-grid { grid-template-columns: 380px minmax(320px, 1fr) 500px; }
 }
 
 /* 좁은 화면 — 1단 (모바일) */
@@ -399,4 +400,153 @@ p {
 }
 .split-grid-right > .card {
     margin-bottom: 10px;
+}
+
+/* ============================================================================
+   단계 O-3 (fix #6): 픽 화면 팀 박스 디자인 (사진 2 참고)
+   ============================================================================ */
+.team-vbox {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 2px solid #fbbf24;
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 8px;
+}
+.team-vbox.opponent {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+}
+.team-vbox-title {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+}
+.team-vbox-title .small {
+    display: block;
+    font-size: 11px;
+    color: #6b7280;
+    font-weight: 700;
+    margin-top: 2px;
+}
+.team-vbox-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.75);
+    border-radius: 8px;
+    margin-bottom: 3px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #374151;
+}
+.team-vbox.opponent .team-vbox-row {
+    background: #f9fafb;
+}
+.team-vbox-row.leader {
+    font-weight: 800;
+}
+.team-vbox-row.empty {
+    background: rgba(255, 255, 255, 0.35);
+    color: #9ca3af;
+    font-style: italic;
+    font-weight: 500;
+}
+.team-vbox-row > span:first-child {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 점수 뱃지 통일 (픽 가능한 멤버, 팀 박스 모두 사용) */
+.member-score-badge {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    line-height: 1.4;
+    display: inline-block;
+}
+
+/* ============================================================================
+   단계 O-3 (fix #7): 픽 가능한 멤버 버튼 디자인
+   ============================================================================ */
+.members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 6px;
+}
+.member-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f2937;
+    transition: all 0.15s;
+    text-align: left;
+    position: relative;
+}
+.member-btn:hover:not(:disabled) {
+    border-color: #fbbf24;
+    background: #fffbeb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+.member-btn:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.member-btn.is-selected {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25);
+}
+.member-name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+.member-name-wrap > :first-child {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.selected-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
