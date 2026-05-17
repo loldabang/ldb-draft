@@ -302,6 +302,39 @@
         }
     }
 
+    // 단계 O-3 (fix #2): 비김 시 강한 효과 한 번만
+    let _lastDrawShown = -1;
+    function _showDrawEffect(rpsId) {
+        if (_lastDrawShown === rpsId) return;
+        _lastDrawShown = rpsId;
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:99998; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); animation:drawFadeIn 0.3s ease-out;';
+        overlay.innerHTML = `
+            <div style="background:linear-gradient(135deg, #fef3c7, #fbbf24); border-radius:18px; padding:30px 40px; text-align:center; box-shadow:0 20px 60px rgba(245,158,11,0.5); animation:drawPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); border:3px solid #f59e0b;">
+                <div style="font-size:64px; margin-bottom:6px; animation:drawShake 0.6s ease-out;">🤝</div>
+                <div style="font-size:22px; font-weight:900; color:#92400e; margin-bottom:4px;">비김!</div>
+                <div style="font-size:13px; color:#78350f; font-weight:700;">다시 가위바위보를 진행합니다</div>
+            </div>
+        `;
+        // 인라인 keyframes
+        if (!document.getElementById('drawEffectStyles')) {
+            const st = document.createElement('style');
+            st.id = 'drawEffectStyles';
+            st.innerText = `
+                @keyframes drawFadeIn { from { opacity:0; } to { opacity:1; } }
+                @keyframes drawPop { 0% { transform:scale(0.3); opacity:0; } 50% { transform:scale(1.1); } 100% { transform:scale(1); opacity:1; } }
+                @keyframes drawShake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-15deg)} 75%{transform:rotate(15deg)} }
+                @keyframes drawFadeOut { to { opacity:0; transform:scale(0.9); } }
+            `;
+            document.head.appendChild(st);
+        }
+        document.body.appendChild(overlay);
+        setTimeout(() => {
+            overlay.style.animation = 'drawFadeOut 0.4s ease-in forwards';
+            setTimeout(() => { try { overlay.remove(); } catch(e){} }, 400);
+        }, 1800);
+    }
+
     let _pendingRpsChoice = null;  // 단계 O-3 (fix #4): 확정 전 임시 선택
 
     function renderNTeamSidePick() {
@@ -388,8 +421,11 @@
 
         // 가위바위보 진행 중
         if (!winner || winner === 'draw') {
-            // 비김 시 _pendingRpsChoice도 reset
-            if (winner === 'draw') _pendingRpsChoice = null;
+            // 비김 시 _pendingRpsChoice도 reset + 큰 효과 1회
+            if (winner === 'draw') {
+                _pendingRpsChoice = null;
+                if (_myMatchupRps && _myMatchupRps.id) _showDrawEffect(_myMatchupRps.id);
+            }
 
             const myChoice = _myRole === 'a'
                 ? (_myMatchupRps && _myMatchupRps.leader1_choice)
