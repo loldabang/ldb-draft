@@ -413,7 +413,7 @@ async function _tryClaim(silent) {
     const client = initSupabase();
     if (!client) {
         if (!silent) showFatalError('Supabase 연결 실패');
-        return false;
+        return silent ? true : false;  // silent 모드는 통과
     }
     const clientId = _getOrCreateClientId(ROOM_CODE, ROLE);
     try {
@@ -423,19 +423,26 @@ async function _tryClaim(silent) {
             p_claim_id: clientId
         });
         if (error) {
+            console.warn('claim_leader_seat error:', error);
             if (!silent) showFatalError('접속 확인 실패: ' + error.message);
-            return false;
+            return silent ? true : false;  // silent 모드는 통과 (이미 검증된 사용자)
         }
         const r = data && data[0];
-        if (!r || !r.success) {
-            if (!silent) _showClaimDenied(r ? r.message : '접속이 거부되었습니다.');
+        if (!r) {
+            console.warn('claim_leader_seat: empty response');
+            return silent ? true : false;
+        }
+        if (!r.success) {
+            // 명확히 거부된 경우만 막기 (silent 모드라도)
+            if (!silent) _showClaimDenied(r.message || '접속이 거부되었습니다.');
             return false;
         }
         _markClaimVerified(ROOM_CODE, ROLE);
         return true;
     } catch (e) {
+        console.warn('claim_leader_seat exception:', e);
         if (!silent) showFatalError('네트워크 오류: ' + (e && e.message ? e.message : e));
-        return false;
+        return silent ? true : false;  // silent 모드는 통과
     }
 }
 
