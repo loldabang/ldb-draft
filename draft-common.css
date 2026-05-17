@@ -49,6 +49,11 @@ body {
     gap: 16px;
 }
 
+/* 단계 O-3 (fix #4): 드래프트 페이지는 더 넓게 (3등분 화면 활용) */
+body.draft-wide .page-wrap {
+    max-width: 1500px;
+}
+
 /* ===== 카드 ===== */
 .card {
     background: var(--card-bg);
@@ -360,8 +365,8 @@ p {
    ============================================================================ */
 .draft-3col-grid {
     display: grid;
-    /* 단계 O-3 (fix #4): 중앙 너무 크지 않게, 양 옆 더 넓게 */
-    grid-template-columns: 320px minmax(260px, 1fr) 320px;
+    /* 단계 O-3 (fix #4 재수정): 1:1:1 균등 3등분 */
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 12px;
     align-items: start;
 }
@@ -370,14 +375,6 @@ p {
 .draft-3col-grid .card {
     padding: 12px;
     margin-bottom: 10px;
-}
-
-/* 큰 화면 — 양 옆 더 넓게 (6/8팀 상대 팀 많을 때) */
-@media (min-width: 1400px) {
-    .draft-3col-grid { grid-template-columns: 360px minmax(300px, 1fr) 400px; }
-}
-@media (min-width: 1700px) {
-    .draft-3col-grid { grid-template-columns: 380px minmax(320px, 1fr) 500px; }
 }
 
 /* 좁은 화면 — 1단 (모바일) */
@@ -487,7 +484,7 @@ p {
 }
 .member-btn {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;  /* 단계 O-3 (fix #4): 이름과 점수 가까이 */
     align-items: center;
     gap: 8px;
     padding: 10px 12px;
@@ -521,18 +518,18 @@ p {
     box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25);
 }
 .member-name-wrap {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    flex: 1;
     min-width: 0;
     overflow: hidden;
+    flex: 0 1 auto;  /* 단계 O-3 (fix #4): 컨텐츠만큼만 차지 */
 }
 .member-name-wrap > :first-child {
-    flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
 }
 .selected-badge {
     position: absolute;
@@ -549,4 +546,90 @@ p {
     font-size: 11px;
     font-weight: 800;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   단계 O-3 (fix #2): pick-order.html 멤버 미리보기 + 3단 레이아웃
+   ============================================================================ */
+.member-preview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.member-preview-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1f2937;
+}
+.member-preview-row .member-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* triple-grid 재정의 — 사용자 요청 #3: 왼쪽=멤버, 중앙=내/상대, 오른쪽=먼저픽/나중픽 */
+.triple-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+}
+.triple-grid > * { min-width: 0; }
+.triple-grid > div > .card {
+    margin-bottom: 10px;
+    padding: 12px;
+}
+@media (max-width: 900px) {
+    .triple-grid { grid-template-columns: 1fr; }
+}
+
+/* 오른쪽 pick-order-controls 안의 order-grid: 위/아래 세로로 */
+.triple-grid .order-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+.order-btn {
+    padding: 16px 10px;
+    border-radius: 12px;
+    border: 2px solid;
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: center;
+    transition: all 0.15s;
+}
+.order-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.1);
+}
+.order-btn.first { border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb, #fef3c7); }
+.order-btn.last { border-color: #6366f1; background: linear-gradient(135deg, #eef2ff, #e0e7ff); }
+.order-btn .order-icon { font-size: 32px; }
+.order-btn .order-label { font-size: 14px; font-weight: 800; margin-top: 4px; color: #1f2937; }
+.order-btn .order-desc { font-size: 11px; color: #6b7280; font-weight: 700; margin-top: 4px; }
+.order-explanation {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f9fafb;
+    border-radius: 8px;
+    font-size: 11px;
+    color: #4b5563;
+    text-align: center;
+}
+.order-explanation .sequence {
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: 800;
+    color: #f59e0b;
+    margin-top: 4px;
 }
