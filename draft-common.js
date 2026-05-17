@@ -531,10 +531,17 @@ function renderHeader(room, stageTitle, stageSubtitle) {
     const header = $('headerArea');
     if (!header) return;
     const myName = getMyDisplayName(room);
-    const roleLabel = ROLE === 'leader1' ? '1팀 팀장' : '2팀 팀장';
+    // 단계 O-3 (fix #6+7): ROLE에서 team_index 추출 + 컴팩트 헤더
+    const myIdx = getMyTeamIndex() || 1;
+    const roleLabel = myIdx + '팀 팀장';
+    // 컴팩트 한 줄 + stageTitle / subtitle도 같이 표시 (공간 절약)
+    const stageHtml = stageTitle
+        ? `<span style="color:#6b7280; font-size:11px; font-weight:700; margin-left:8px;">${escapeHtml(stageTitle)}</span>`
+        : '';
     header.innerHTML = `
-        <div class="card header-card" style="padding: 14px 18px;">
-            <span class="role-badge role-${ROLE}">👑 ${roleLabel} (${escapeHtml(myName)})</span>
+        <div class="card header-card" style="padding: 8px 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span class="role-badge role-${ROLE}" style="padding:4px 10px;">👑 ${roleLabel} (${escapeHtml(myName)})</span>
+            ${stageHtml}
         </div>
     `;
 }
@@ -582,6 +589,8 @@ async function ensureLeaderClaim(room) {
         console.log('[claim] already verified in localStorage, silent verify');
         const ok = await _tryClaim(/* silent */ true);
         console.log('[claim] silent verify result:', ok);
+        // 단계 O-3 (fix #1): claim 후 status 재확인
+        if (ok) await _redirectIfStatusChanged(room);
         return ok;
     }
 
@@ -619,7 +628,32 @@ async function ensureLeaderClaim(room) {
     console.log('[claim] calling _tryClaim(false)');
     const ok = await _tryClaim(false);
     console.log('[claim] _tryClaim result:', ok);
+
+    // 단계 O-3 (fix #1): claim 후 status 재확인
+    if (ok) await _redirectIfStatusChanged(room);
+
     return ok;
+}
+
+// 단계 O-3 (fix #1): claim 진행 중에 admin이 status 바꿨으면 main으로 리다이렉트
+async function _redirectIfStatusChanged(oldRoom) {
+    if (!oldRoom) return;
+    try {
+        const client = initSupabase();
+        const { data: newRoom } = await client
+            .from('rooms')
+            .select('status')
+            .eq('room_code', ROOM_CODE)
+            .maybeSingle();
+        if (newRoom && newRoom.status !== oldRoom.status) {
+            console.log('[claim] status changed during claim:', oldRoom.status, '→', newRoom.status, '— redirecting to main');
+            goToMain();
+            // goToMain은 페이지 이동을 트리거하지만, 즉시 return하지 않음
+            // 호출자가 ok=true를 받고 진행하더라도, 페이지가 곧 unload되므로 무해
+        }
+    } catch (e) {
+        console.warn('status recheck failed:', e);
+    }
 }
 
 async function _tryClaim(silent) {
