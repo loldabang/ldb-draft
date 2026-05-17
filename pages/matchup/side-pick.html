@@ -392,6 +392,11 @@
                 ? _myMatchup.team_b_index : _myMatchup.team_a_index;
             const redTeam = getTeamByIndex(redTeamIdx);
             const iAmBlue = _myMatchup.blue_team_index === _myTeamIndex;
+            // 단계 O-3 (fix #5): BLUE 항상 왼쪽, RED 항상 오른쪽
+            const blueMembers = buildTeamMemberList(blueTeam);
+            const redMembers = buildTeamMemberList(redTeam);
+            const blueIsMine = blueTeam && blueTeam.team_index === _myTeamIndex;
+            const redIsMine = !blueIsMine;
             view.innerHTML = `<div class="card" style="text-align:center; padding:20px 16px;">
                 <div style="font-size:48px; margin-bottom:4px;">${iAmBlue ? '🟦' : '🟥'}</div>
                 <h1 style="border-bottom:none; padding-bottom:0; font-size:18px;">매칭 ${_myMatchup.match_index} 진영 결정 완료!</h1>
@@ -401,16 +406,16 @@
                 </p>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; text-align:left; margin-top:12px;">
                     <div>
-                        <div style="font-size:12px; font-weight:800; margin-bottom:6px; text-align:center; color:#1f2937;">
-                            ⭐ ${myTeam ? myTeam.team_index : ''}팀 (나) ${iAmBlue ? '🟦' : '🟥'}
+                        <div style="font-size:12px; font-weight:800; margin-bottom:6px; text-align:center; color:#1e40af;">
+                            🟦 ${blueTeam ? blueTeam.team_index : ''}팀 BLUE${blueIsMine ? ' ⭐' : ''}
                         </div>
-                        ${renderMemberList(myMembers, true)}
+                        ${renderMemberList(blueMembers, blueIsMine)}
                     </div>
                     <div>
-                        <div style="font-size:12px; font-weight:800; margin-bottom:6px; text-align:center; color:#1f2937;">
-                            ${oppTeam ? oppTeam.team_index : ''}팀 (상대) ${iAmBlue ? '🟥' : '🟦'}
+                        <div style="font-size:12px; font-weight:800; margin-bottom:6px; text-align:center; color:#991b1b;">
+                            🟥 ${redTeam ? redTeam.team_index : ''}팀 RED${redIsMine ? ' ⭐' : ''}
                         </div>
-                        ${renderMemberList(oppMembers, false)}
+                        ${renderMemberList(redMembers, redIsMine)}
                     </div>
                 </div>
                 <p style="color:#6b7280; font-size:11px; margin-top:14px;">다른 매칭이 끝날 때까지 기다려주세요...</p>
