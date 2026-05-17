@@ -181,13 +181,13 @@
                     <div class="rps-emoji">✊</div>
                     <div class="rps-label">바위</div>
                 </button>
-                <button class="rps-btn" data-choice="paper" onclick="onRpsButtonClick('paper')">
-                    <div class="rps-emoji">✋</div>
-                    <div class="rps-label">보</div>
-                </button>
                 <button class="rps-btn" data-choice="scissors" onclick="onRpsButtonClick('scissors')">
                     <div class="rps-emoji">✌️</div>
                     <div class="rps-label">가위</div>
+                </button>
+                <button class="rps-btn" data-choice="paper" onclick="onRpsButtonClick('paper')">
+                    <div class="rps-emoji">✋</div>
+                    <div class="rps-label">보</div>
                 </button>
             </div>
 
@@ -364,7 +364,16 @@
                 }
 
                 // 비김 감지 — payload.new에서 직접 확인
-                if (newRps.winner === 'draw') {
+                // 단계 O-3 (fix #1): SQL이 'draw' winner 즉시 reset해서 양 팀 모두에게 안 보일 수 있음
+                //   → 양 선택값으로 직접 클라이언트 판정 추가
+                let isDraw = (newRps.winner === 'draw');
+                if (!isDraw && newRps.leader1_choice && newRps.leader2_choice
+                    && newRps.leader1_choice === newRps.leader2_choice
+                    && !newRps.winner) {
+                    // SQL이 reset해서 winner는 NULL이지만 choices 둘 다 있고 같음 → 비김
+                    isDraw = true;
+                }
+                if (isDraw) {
                     const drawKey = 'draw_' + ROUND + '_' + (newRps.leader1_choice || '') + '_' + (newRps.leader2_choice || '');
                     if (lastWinnerSeen !== drawKey) {
                         lastWinnerSeen = drawKey;
@@ -376,7 +385,8 @@
                     const wd = $('waitingDesc');
                     if (wd) {
                         const emoji = ch => ({ rock: '✊', paper: '✋', scissors: '✌️' })[ch] || '?';
-                        wd.innerHTML = `🤝 <strong>비겼습니다!</strong><br>둘 다 ${emoji(newRps.leader1_choice)}<br>잠시 후 자동으로 다시 시작됩니다...`;
+                        const ch = newRps.leader1_choice || newRps.leader2_choice;
+                        wd.innerHTML = `🤝 <strong>비겼습니다!</strong><br>둘 다 ${emoji(ch)}<br>잠시 후 자동으로 다시 시작됩니다...`;
                     }
                     // pending 정리
                     pendingChoice = null;
