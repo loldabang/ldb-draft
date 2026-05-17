@@ -198,6 +198,11 @@ function routeByStatus(room, rpsGames) {
         return { page: 'rps', extras: { round: 1 } };
     }
 
+    // 단계 M: N팀 — admin이 픽 순서를 결정하는 중. 양 팀장은 대기 화면(현재 picker 표시).
+    if (status === 'pick_order_pending') {
+        return { page: 'draft' };  // draft 페이지가 "픽 순서 결정 대기" 화면도 처리
+    }
+
     if (status === 'drafting') {
         return { page: 'draft' };
     }
@@ -210,11 +215,22 @@ function routeByStatus(room, rpsGames) {
         return { page: 'rps', extras: { round: 2 } };
     }
 
+    // 단계 M: N팀 — 8픽 끝나고 admin이 매칭 결정 중
+    if (status === 'matchup_pending') {
+        return { page: 'draft' };  // draft 페이지에 "매칭 결정 대기" 표시
+    }
+
+    // 단계 M: N팀 — 매칭 결정 끝, 매칭별 진영 가위바위보 진행 중
+    if (status === 'side_rps') {
+        return { page: 'draft' };  // draft 페이지에 "진영 가위바위보 대기" 표시 (단계 N/O에서 별도 페이지)
+    }
+
     if (status === 'done') {
         return { page: 'done' };
     }
 
     // 알 수 없는 상태
+    console.warn('[routeByStatus] unknown status:', status);
     return { page: 'rps', extras: { round: 1 } };
 }
 
@@ -386,26 +402,31 @@ function _markClaimVerified(roomCode, role) {
 // 성공하면 resolve(true), 실패/거부면 화면 교체 + resolve(false)
 // 이미 확인 완료된 경우 (localStorage 표식) 즉시 통과
 async function ensureLeaderClaim(room) {
+    console.log('[claim] ensureLeaderClaim called', { room_status: room && room.status, ROLE });
     if (!ROOM_CODE || !ROLE || !TOKEN) {
-        // URL 파라미터가 잘못된 경우는 별도 처리 (validateUrlParams)
+        console.warn('[claim] missing url params, skipping');
         return true;
     }
     if (_isClaimVerified(ROOM_CODE, ROLE)) {
-        // 이미 이 브라우저에서 claim 완료 — 빠른 통과
-        // 단, 서버에 한 번 더 확인해서 다른 곳에서 점유했는지 체크
+        console.log('[claim] already verified in localStorage, silent verify');
         const ok = await _tryClaim(/* silent */ true);
+        console.log('[claim] silent verify result:', ok);
         return ok;
     }
 
     // 첫 접속: 사용자에게 확인 화면 표시
     const myName = (room && (ROLE === 'leader1' ? room.leader1_name : room.leader2_name)) || ROLE;
+    console.log('[claim] showing modal for:', myName);
     const userOk = await _showClaimConfirmScreen(myName);
+    console.log('[claim] modal result:', userOk);
     if (!userOk) {
         _showClaimRefused();
         return false;
     }
     // RPC 호출
+    console.log('[claim] calling _tryClaim(false)');
     const ok = await _tryClaim(false);
+    console.log('[claim] _tryClaim result:', ok);
     return ok;
 }
 
@@ -449,9 +470,14 @@ async function _tryClaim(silent) {
 // 사용자에게 "본인이 맞으십니까?" 모달
 function _showClaimConfirmScreen(displayName) {
     return new Promise((resolve) => {
+        // 단계 L fix: 기존 로딩 화면이나 다른 요소가 가리지 못하도록 명시적으로 body 끝에 추가 + z-index 더 높임
+        // 또한 기존 overlay 있으면 제거
+        const existing = document.getElementById('_claimConfirmOverlay');
+        if (existing) existing.remove();
+
         const overlay = document.createElement('div');
         overlay.id = '_claimConfirmOverlay';
-        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:99999; display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);';
+        overlay.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; width:100vw; height:100vh; background:rgba(0,0,0,0.75); z-index:2147483647; display:flex; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;';
         overlay.innerHTML = `
             <div style="background:#fff; border-radius:14px; padding:24px 20px; max-width:380px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.25); text-align:center; font-family:'Pretendard',sans-serif;">
                 <div style="font-size:42px; margin-bottom:8px;">👑</div>
@@ -462,14 +488,33 @@ function _showClaimConfirmScreen(displayName) {
                 </div>
                 <p style="font-size:11px; color:#dc2626; margin-bottom:14px;">⚠️ 본인이 아니라면 [아니요]를 눌러주세요.<br>한 번 [예]를 누르면 다른 사람은 들어올 수 없습니다.</p>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                    <button id="_claimNo" style="padding:12px; border:2px solid #e5e7eb; border-radius:10px; background:#fff; color:#6b7280; font-weight:700; cursor:pointer; font-family:inherit; font-size:14px;">❌ 아니요</button>
-                    <button id="_claimYes" style="padding:12px; border:none; border-radius:10px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; font-weight:800; cursor:pointer; font-family:inherit; font-size:14px;">✅ 예, 맞습니다</button>
+                    <button id="_claimNo" type="button" style="padding:12px; border:2px solid #e5e7eb; border-radius:10px; background:#fff; color:#6b7280; font-weight:700; cursor:pointer; font-family:inherit; font-size:14px;">❌ 아니요</button>
+                    <button id="_claimYes" type="button" style="padding:12px; border:none; border-radius:10px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; font-weight:800; cursor:pointer; font-family:inherit; font-size:14px;">✅ 예, 맞습니다</button>
                 </div>
             </div>
         `;
-        document.body.appendChild(overlay);
-        document.getElementById('_claimYes').onclick = () => { try { overlay.remove(); } catch(e){} resolve(true); };
-        document.getElementById('_claimNo').onclick  = () => { try { overlay.remove(); } catch(e){} resolve(false); };
+        // body가 준비된 후 추가 (DOM 로드 전이라면 대기)
+        const append = () => {
+            document.body.appendChild(overlay);
+            console.log('[claim] modal shown for:', displayName);
+            const yesBtn = document.getElementById('_claimYes');
+            const noBtn = document.getElementById('_claimNo');
+            if (yesBtn) yesBtn.onclick = () => {
+                console.log('[claim] user clicked YES');
+                try { overlay.remove(); } catch(e){}
+                resolve(true);
+            };
+            if (noBtn) noBtn.onclick = () => {
+                console.log('[claim] user clicked NO');
+                try { overlay.remove(); } catch(e){}
+                resolve(false);
+            };
+        };
+        if (document.body) {
+            append();
+        } else {
+            document.addEventListener('DOMContentLoaded', append);
+        }
     });
 }
 
