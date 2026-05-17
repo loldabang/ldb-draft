@@ -247,11 +247,7 @@ function routeByStatus(room, rpsGames) {
     }
 
     if (status === 'drafting') {
-        // 단계 O-1 추가: N팀의 drafting은 아직 UI 미구현 → 대기 화면
-        // (단계 O-2에서 draft-2team.html N팀 호환되면 'draft'로 변경)
-        if (isNTeam) {
-            return { page: 'waiting', extras: { reason: 'drafting_n', status } };
-        }
+        // 단계 O-2: N팀도 draft 페이지로 라우팅 (draft-2team.html이 N팀 호환됨)
         return { page: 'draft' };
     }
 
