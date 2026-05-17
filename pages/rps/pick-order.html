@@ -98,7 +98,7 @@
         .result-banner .result-desc { font-size: 12px; color: var(--text-muted); }
     </style>
 </head>
-<body>
+<body class="draft-wide">
     <div class="page-wrap">
         <div id="headerArea"></div>
 
@@ -128,12 +128,12 @@
 
                 <!-- 가운데: 내 팀 (위) / 상대 팀 (아래) -->
                 <div class="split-grid-right">
-                    <div class="card">
-                        <div class="section-title-2"><span id="myTeamHeader">🏆 내 팀</span></div>
+                    <div class="card" style="background:transparent; box-shadow:none; padding:0; border:none;">
+                        <div class="section-title-2" id="myTeamHeader" style="display:none;">🏆 내 팀</div>
                         <div id="myTeamBox"></div>
                     </div>
-                    <div class="card">
-                        <div class="section-title-2"><span id="otherTeamHeader">🤝 상대 팀</span></div>
+                    <div class="card" style="background:transparent; box-shadow:none; padding:0; border:none;">
+                        <div class="section-title-2" id="otherTeamHeader" style="display:none;">🤝 상대 팀</div>
                         <div id="otherTeamBox"></div>
                     </div>
                 </div>
@@ -323,21 +323,28 @@
         const myLeaderScore = ROLE === 'leader1' ? currentRoom.leader1_score : currentRoom.leader2_score;
         const otherLeaderScore = ROLE === 'leader1' ? currentRoom.leader2_score : currentRoom.leader1_score;
 
-        $('myTeamHeader').innerText = `🏆 내 팀 (${myTeamLabel})`;
-        $('otherTeamHeader').innerText = `🤝 상대 팀 (${otherTeamLabel})`;
+        // 단계 O-3 (fix #2): 헤더 숨김 (team-vbox-title이 대체)
+        const myH = $('myTeamHeader'); if (myH) myH.style.display = 'none';
+        const oH = $('otherTeamHeader'); if (oH) oH.style.display = 'none';
 
-        const buildBox = (leaderName, leaderScore) => {
-            const scoreHtml = (leaderScore !== null && leaderScore !== undefined && leaderScore !== '')
-                ? `<span class="member-score-badge">${leaderScore}</span>` : '';
-            let html = `<div class="team-vbox-row leader"><span>👑 ${escapeHtml(leaderName || '(미정)')}</span>${scoreHtml}</div>`;
+        const scoreBadgeHtml = (sc) => (sc !== null && sc !== undefined && sc !== '')
+            ? `<span class="member-score-badge">${sc}</span>` : '';
+
+        // 단계 O-3 (fix #2): team-vbox 스타일 통일
+        const buildBox = (teamLabel, leaderName, leaderScore, isOpponent) => {
+            const total = Number(leaderScore) || 0; // 픽 시작 전이라 팀장 점수만
+            let html = `<div class="team-vbox${isOpponent ? ' opponent' : ''}">
+                <div class="team-vbox-title">${teamLabel}<span class="small">합산 ${total}점 (1명)</span></div>
+                <div class="team-vbox-row leader"><span>👑 ${escapeHtml(leaderName || '(미정)')}</span>${scoreBadgeHtml(leaderScore)}</div>`;
             for (let i = 0; i < 4; i++) {
-                html += `<div class="team-vbox-row empty">(픽 대기)</div>`;
+                html += `<div class="team-vbox-row empty"><span>(픽 대기)</span></div>`;
             }
+            html += `</div>`;
             return html;
         };
 
-        $('myTeamBox').innerHTML = buildBox(myLeaderName, myLeaderScore);
-        $('otherTeamBox').innerHTML = buildBox(otherLeaderName, otherLeaderScore);
+        $('myTeamBox').innerHTML = buildBox(myTeamLabel, myLeaderName, myLeaderScore, false);
+        $('otherTeamBox').innerHTML = buildBox(otherTeamLabel, otherLeaderName, otherLeaderScore, true);
     }
 
     function renderPickOrderControls() {
