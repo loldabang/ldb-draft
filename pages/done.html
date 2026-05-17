@@ -196,7 +196,15 @@
         renderDone();
     })();
 
-    function renderDone() {
+    async function renderDone() {
+        const teamCount = currentRoom.team_count || 2;
+        if (teamCount === 2) {
+            return renderDone2();
+        }
+        return renderDoneN();
+    }
+
+    function renderDone2() {
         // 팀 구성
         const team1Members = [currentRoom.leader1_name || '(미정)'];
         const team2Members = [currentRoom.leader2_name || '(미정)'];
@@ -260,6 +268,87 @@
                 ${team2Members.map((m, i) => `<div class="team-member${i===0?' leader':''}"><span>${escapeHtml(m)}</span>${scoreBadgeHtml(m)}</div>`).join('')}
             </div>
         `;
+    }
+
+    async function renderDoneN() {
+        // teams + matchups 로드
+        const client = initSupabase();
+        let teams = [], matchups = [];
+        try {
+            const { data: ts } = await client.from('teams').select('*')
+                .eq('room_code', ROOM_CODE).order('team_index');
+            teams = ts || [];
+            const { data: ms } = await client.from('matchups').select('*')
+                .eq('room_code', ROOM_CODE).order('match_index');
+            matchups = ms || [];
+        } catch (e) {
+            console.warn('teams/matchups load:', e);
+        }
+
+        // 점수 맵
+        const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
+        const scoreMap = {};
+        members.forEach(m => {
+            if (m && typeof m === 'object' && m.name) scoreMap[m.name] = m.score;
+        });
+        teams.forEach(t => { if (t.leader_name) scoreMap[t.leader_name] = t.leader_score; });
+
+        const scoreBadgeHtml = (name) => {
+            const sc = scoreMap[name];
+            return (sc !== null && sc !== undefined && sc !== '')
+                ? `<span class="member-score-badge">${sc}</span>` : '';
+        };
+
+        // 서브타이틀: 모든 매칭 요약
+        const summaryParts = matchups.map(m => {
+            const blueT = teams.find(t => t.team_index === m.blue_team_index);
+            const redIdx = m.blue_team_index === m.team_a_index ? m.team_b_index : m.team_a_index;
+            const redT = teams.find(t => t.team_index === redIdx);
+            return `매칭 ${m.match_index}: 🟦${blueT ? blueT.team_index : '?'}팀 vs 🟥${redT ? redT.team_index : '?'}팀`;
+        });
+        $('doneSubtitle').innerText = summaryParts.join('  |  ') || `${teams.length}팀 드래프트 완료`;
+
+        // 각 매칭을 그룹으로 표시
+        const renderTeamBox = (team, sideLabel, isBlue) => {
+            const picks = currentDrafts.filter(d => d.picker_team_index === team.team_index)
+                                       .sort((a, b) => a.pick_number - b.pick_number);
+            const list = [team.leader_name, ...picks.map(p => p.picked_member)];
+            const total = list.reduce((s, n) => {
+                const sc = scoreMap[n];
+                return s + (typeof sc === 'number' ? sc : 0);
+            }, 0);
+            const cls = isBlue ? 'is-blue' : 'is-red';
+            const badge = isBlue
+                ? '<span class="side-badge blue">🟦 BLUE</span>'
+                : '<span class="side-badge red">🟥 RED</span>';
+            return `
+                <div class="team-box ${cls}" style="border-radius:10px;">
+                    <div class="team-title">🏆 ${team.team_index}팀 ${badge} <span class="team-total">합산 ${total}점</span></div>
+                    ${list.map((n, i) => `<div class="team-member${i===0?' leader':''}"><span>${escapeHtml(n)}</span>${scoreBadgeHtml(n)}</div>`).join('')}
+                </div>
+            `;
+        };
+
+        let html = '';
+        matchups.forEach(m => {
+            const teamA = teams.find(t => t.team_index === m.team_a_index);
+            const teamB = teams.find(t => t.team_index === m.team_b_index);
+            if (!teamA || !teamB) return;
+            const aIsBlue = m.blue_team_index === teamA.team_index;
+            html += `
+                <div style="margin-bottom:18px;">
+                    <div style="font-size:14px; font-weight:800; color:#1f2937; margin-bottom:8px; text-align:center;">
+                        🥊 매칭 ${m.match_index}
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        ${renderTeamBox(teamA, '', aIsBlue)}
+                        ${renderTeamBox(teamB, '', !aIsBlue)}
+                    </div>
+                </div>
+            `;
+        });
+
+        $('finalTeamsDisplay').innerHTML = html || '<p style="text-align:center; color:#6b7280;">매칭 정보를 불러올 수 없습니다.</p>';
     }
 
     // 단계 F 추가: 나가기 — 페이지 컨텐츠를 작별 메시지로 교체
