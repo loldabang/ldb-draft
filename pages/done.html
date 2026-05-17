@@ -334,15 +334,19 @@
             const teamA = teams.find(t => t.team_index === m.team_a_index);
             const teamB = teams.find(t => t.team_index === m.team_b_index);
             if (!teamA || !teamB) return;
-            const aIsBlue = m.blue_team_index === teamA.team_index;
+            // 단계 O-3 (fix #5): BLUE 항상 왼쪽, RED 항상 오른쪽
+            const blueTeam = teams.find(t => t.team_index === m.blue_team_index);
+            const redTeam = teamA.team_index === m.blue_team_index ? teamB : teamA;
+            const leftTeam = blueTeam || teamA;
+            const rightTeam = redTeam || teamB;
             html += `
                 <div style="margin-bottom:18px;">
                     <div style="font-size:14px; font-weight:800; color:#1f2937; margin-bottom:8px; text-align:center;">
-                        🥊 매칭 ${m.match_index}
+                        🥊 매칭 ${m.match_index}: ${leftTeam.team_index}팀 vs ${rightTeam.team_index}팀
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                        ${renderTeamBox(teamA, '', aIsBlue)}
-                        ${renderTeamBox(teamB, '', !aIsBlue)}
+                        ${renderTeamBox(leftTeam, '', true)}
+                        ${renderTeamBox(rightTeam, '', false)}
                     </div>
                 </div>
             `;
