@@ -243,10 +243,9 @@
             <div class="draft-3col-grid">
                 <!-- ── 왼쪽 ───────────────────────────────── -->
                 <div id="leftColumn">
-                    <!-- 헤더는 init 시 headerArea로 별도 렌더되지만, 모바일 호환을 위해 여기 위치 -->
-                    <!-- 내 팀 -->
-                    <div class="card">
-                        <div class="section-title" id="myTeamHeader">🏆 내 팀</div>
+                    <!-- 내 팀 (team-vbox-title이 헤더 역할) -->
+                    <div class="card" style="background:transparent; box-shadow:none; padding:0; border:none;">
+                        <div class="section-title" id="myTeamHeader" style="display:none;">🏆 내 팀</div>
                         <div id="myTeamBox"></div>
                     </div>
                 </div>
@@ -274,8 +273,8 @@
 
                 <!-- ── 오른쪽: 상대 팀들 ───────────────────── -->
                 <div id="rightColumn" class="split-grid-right">
-                    <div class="card">
-                        <div class="section-title" id="otherTeamHeader">🤝 상대 팀</div>
+                    <div class="card" style="background:transparent; box-shadow:none; padding:0; border:none;">
+                        <div class="section-title" id="otherTeamHeader" style="display:none;">🤝 상대 팀</div>
                         <div id="otherTeamBox"></div>
                     </div>
                 </div>
@@ -811,8 +810,11 @@
         // 단계 O-3 fix #1: 오른쪽 컨테이너를 기본 (2팀) 형태로 복원
         _ensureRightContainerDefault();
 
-        $('myTeamHeader').innerText = `🏆 내 팀 (${myTeamLabel}) — ${1 + myPicks.length}명`;
-        $('otherTeamHeader').innerText = `🤝 상대 팀 (${otherTeamLabel}) — ${1 + otherPicks.length}명`;
+        // 단계 O-3 (fix #6): myTeamHeader/otherTeamHeader 제거 (team-vbox-title이 대체)
+        const myHeader = $('myTeamHeader');
+        if (myHeader) myHeader.style.display = 'none';
+        const otherHeader = $('otherTeamHeader');
+        if (otherHeader) otherHeader.style.display = 'none';
 
         const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
         const scoreMap = {};
@@ -823,21 +825,28 @@
         const scoreBadge = (sc) => (sc !== null && sc !== undefined && sc !== '')
             ? `<span class="member-score-badge">${sc}</span>` : '';
 
-        const buildBox = (leaderName, leaderScore, picks) => {
-            let html = `<div class="team-vbox-row leader"><span>👑 ${escapeHtml(leaderName || '(미정)')}</span>${scoreBadge(leaderScore)}</div>`;
+        // 단계 O-3 (fix #6): 사진 2 디자인 — team-vbox로 통합
+        const buildBox = (teamLabel, leaderName, leaderScore, picks, isOpponent) => {
+            // 합산 점수
+            const total = (Number(leaderScore) || 0) + picks.reduce((s, n) => s + (Number(scoreMap[n]) || 0), 0);
+            const count = 1 + picks.length;
+            let html = `<div class="team-vbox${isOpponent ? ' opponent' : ''}">
+                <div class="team-vbox-title">${teamLabel}<span class="small">합산 ${total}점 (${count}명)</span></div>
+                <div class="team-vbox-row leader"><span>👑 ${escapeHtml(leaderName || '(미정)')}</span>${scoreBadge(leaderScore)}</div>`;
             for (let i = 0; i < 4; i++) {
                 if (i < picks.length) {
                     const sc = scoreMap[picks[i]];
                     html += `<div class="team-vbox-row"><span>${escapeHtml(picks[i])}</span>${scoreBadge(sc)}</div>`;
                 } else {
-                    html += `<div class="team-vbox-row empty">(픽 대기)</div>`;
+                    html += `<div class="team-vbox-row empty"><span>(픽 대기)</span></div>`;
                 }
             }
+            html += `</div>`;
             return html;
         };
 
-        $('myTeamBox').innerHTML = buildBox(myLeaderName, myLeaderScore, myPicks);
-        $('otherTeamBox').innerHTML = buildBox(otherLeaderName, otherLeaderScore, otherPicks);
+        $('myTeamBox').innerHTML = buildBox(myTeamLabel, myLeaderName, myLeaderScore, myPicks, false);
+        $('otherTeamBox').innerHTML = buildBox(otherTeamLabel, otherLeaderName, otherLeaderScore, otherPicks, true);
     }
 
     function _ensureRightContainerDefault() {
@@ -846,8 +855,8 @@
         if (!right) return;
         if (!$('otherTeamBox')) {
             right.innerHTML = `
-                <div class="card">
-                    <div class="section-title" id="otherTeamHeader">🤝 상대 팀</div>
+                <div class="card" style="background:transparent; box-shadow:none; padding:0; border:none;">
+                    <div class="section-title" id="otherTeamHeader" style="display:none;">🤝 상대 팀</div>
                     <div id="otherTeamBox"></div>
                 </div>
             `;
@@ -870,67 +879,46 @@
         const scoreBadge = (sc) => (sc !== null && sc !== undefined && sc !== '')
             ? `<span class="member-score-badge">${sc}</span>` : '';
 
-        // 1) 왼쪽 내 팀 그리기 (기존 myTeamBox 사용)
-        const myTeam = currentTeams.find(t => t.team_index === myIdx);
-        if (myTeam) {
-            const myPicks = currentDrafts.filter(d => d.picker_team_index === myIdx)
-                                          .sort((a, b) => a.pick_number - b.pick_number);
-            const myTotal = (myTeam.leader_score || 0) + myPicks.reduce((s, p) => s + (Number(scoreMap[p.picked_member]) || 0), 0);
-            $('myTeamHeader').innerText = `🏆 내 팀 (${myIdx}팀) — ${1 + myPicks.length}명 / 합산 ${myTotal}점`;
-            let html = `<div class="team-vbox-row leader"><span>👑 ${escapeHtml(myTeam.leader_name || '(미정)')}</span>${scoreBadge(myTeam.leader_score)}</div>`;
-            for (let i = 0; i < 4; i++) {
-                if (i < myPicks.length) {
-                    html += `<div class="team-vbox-row"><span>${escapeHtml(myPicks[i].picked_member)}</span>${scoreBadge(scoreMap[myPicks[i].picked_member])}</div>`;
-                } else {
-                    html += `<div class="team-vbox-row empty">(픽 대기)</div>`;
-                }
-            }
-            if ($('myTeamBox')) $('myTeamBox').innerHTML = html;
-        }
+        // 헤더 숨김 (team-vbox-title이 대체)
+        const myHeader = $('myTeamHeader');
+        if (myHeader) myHeader.style.display = 'none';
+        const otherHeader = $('otherTeamHeader');
+        if (otherHeader) otherHeader.style.display = 'none';
 
-        // 2) 오른쪽 상대 팀들 그리기 (그리드)
-        const right = document.querySelector('.split-grid-right');
-        if (!right) return;
-
-        const otherTeams = currentTeams.filter(t => t.team_index !== myIdx);
-        // 단계 O-3 (fix #1): 오른쪽 영역은 좁음 → 항상 1열로 (스크롤 가능)
-        // 화면이 충분히 넓으면 2열로 자동 (CSS media query는 따로 안 적용, 인라인으로 처리)
-        const gridCols = '1fr';
-
-        right.innerHTML = `
-            <div class="card" style="padding:10px;">
-                <div class="section-title" style="text-align:center; margin-bottom:8px; font-size:13px;">
-                    🤝 상대 팀 (${otherTeams.length}팀)
-                </div>
-                <div id="otherTeamsGridContainer" style="display:grid; grid-template-columns:${gridCols}; gap:6px;"></div>
-            </div>
-        `;
-        const container = document.getElementById('otherTeamsGridContainer');
-
-        otherTeams.forEach(t => {
-            const picks = currentDrafts.filter(d => d.picker_team_index === t.team_index)
-                                       .sort((a, b) => a.pick_number - b.pick_number);
-            const total = (t.leader_score || 0) + picks.reduce((s, p) => s + (Number(scoreMap[p.picked_member]) || 0), 0);
-
-            let rowsHtml = `<div class="team-vbox-row leader" style="font-size:11px; padding:4px 6px;">
-                <span>👑 ${escapeHtml(t.leader_name || '?')}</span>${scoreBadge(t.leader_score)}
-            </div>`;
+        // 단계 O-3 (fix #6): 통일된 team-vbox 빌더
+        const buildBoxHtml = (team, isOpponent) => {
+            const picks = currentDrafts.filter(d => d.picker_team_index === team.team_index)
+                                        .sort((a, b) => a.pick_number - b.pick_number);
+            const total = (team.leader_score || 0) + picks.reduce((s, p) => s + (Number(scoreMap[p.picked_member]) || 0), 0);
+            const count = 1 + picks.length;
+            let html = `<div class="team-vbox${isOpponent ? ' opponent' : ''}">
+                <div class="team-vbox-title">${team.team_index}팀<span class="small">합산 ${total}점 (${count}명)</span></div>
+                <div class="team-vbox-row leader"><span>👑 ${escapeHtml(team.leader_name || '?')}</span>${scoreBadge(team.leader_score)}</div>`;
             for (let i = 0; i < 4; i++) {
                 if (i < picks.length) {
-                    rowsHtml += `<div class="team-vbox-row" style="font-size:11px; padding:4px 6px;">
-                        <span>${escapeHtml(picks[i].picked_member)}</span>${scoreBadge(scoreMap[picks[i].picked_member])}
-                    </div>`;
+                    html += `<div class="team-vbox-row"><span>${escapeHtml(picks[i].picked_member)}</span>${scoreBadge(scoreMap[picks[i].picked_member])}</div>`;
                 } else {
-                    rowsHtml += `<div class="team-vbox-row empty" style="font-size:11px; padding:4px 6px;">(픽 대기)</div>`;
+                    html += `<div class="team-vbox-row empty"><span>(픽 대기)</span></div>`;
                 }
             }
-            const box = document.createElement('div');
-            box.style.cssText = 'border:1px solid #e5e7eb; background:#fff; border-radius:8px; padding:6px;';
-            box.innerHTML = `<div style="font-size:11px; font-weight:800; text-align:center; margin-bottom:4px; padding-bottom:3px; border-bottom:1px dashed rgba(0,0,0,0.1); color:#1f2937;">
-                ${t.team_index}팀 <span style="font-size:9px; color:#6b7280; font-weight:700;">(${total}점, ${1 + picks.length}명)</span>
-            </div>${rowsHtml}`;
-            container.appendChild(box);
-        });
+            html += `</div>`;
+            return html;
+        };
+
+        // 1) 왼쪽: 내 팀 (myTeamBox 안에 team-vbox)
+        const myTeam = currentTeams.find(t => t.team_index === myIdx);
+        if (myTeam && $('myTeamBox')) {
+            $('myTeamBox').innerHTML = buildBoxHtml(myTeam, false);
+        }
+
+        // 2) 오른쪽: 상대 팀들 (split-grid-right 통째로 교체)
+        const right = document.querySelector('.split-grid-right');
+        if (!right) return;
+        const otherTeams = currentTeams.filter(t => t.team_index !== myIdx);
+        let html = `<div style="padding:0;">`;
+        otherTeams.forEach(t => { html += buildBoxHtml(t, true); });
+        html += `</div>`;
+        right.innerHTML = html;
     }
     </script>
 </body>
