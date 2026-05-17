@@ -243,7 +243,8 @@ function routeByStatus(room, rpsGames) {
         return { page: 'waiting', extras: { reason: 'matchup' } };
     }
     if (status === 'side_rps') {
-        return { page: 'waiting', extras: { reason: 'side_rps' } };
+        // 단계 O-2: N팀 매칭별 진영 가위바위보 → side-pick.html이 처리
+        return { page: 'side' };
     }
 
     if (status === 'drafting') {
