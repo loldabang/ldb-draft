@@ -303,10 +303,17 @@
     }
 
     // 단계 O-3 (fix #2): 비김 시 강한 효과 한 번만
+    // 단계 O-3 (fix #3 재수정): 같은 rps row에서 두 번째 비김도 표시되도록
+    //   비김 효과 후 일정 시간 뒤 lock 해제 (다시 양 팀 선택 → 다시 비김 판정까지 시간 필요)
     let _lastDrawShown = -1;
     function _showDrawEffect(rpsId) {
         if (_lastDrawShown === rpsId) return;
         _lastDrawShown = rpsId;
+        // 4초 후 lock 해제 (그 사이 양 팀이 다시 가위바위보 → 두 번째 비김도 표시 가능)
+        setTimeout(() => {
+            if (_lastDrawShown === rpsId) _lastDrawShown = -1;
+        }, 4000);
+
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:99998; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); animation:drawFadeIn 0.3s ease-out;';
         overlay.innerHTML = `
