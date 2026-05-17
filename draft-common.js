@@ -223,6 +223,8 @@ function routeByStatus(room, rpsGames) {
     const status = room.status;
     const rps1 = rpsGames.find(r => r.round === 1);
     const rps2 = rpsGames.find(r => r.round === 2);
+    // 단계 O-1: N팀 모드 (team_count > 2) 인지 확인
+    const isNTeam = !!(room.team_count && room.team_count > 2);
 
     if (status === 'waiting' || status === 'rps1') {
         // 단계 E 변경: 가위바위보 결과 났으면 — 이긴 사람도, 진 사람도 둘 다 pick-order로
@@ -245,6 +247,11 @@ function routeByStatus(room, rpsGames) {
     }
 
     if (status === 'drafting') {
+        // 단계 O-1 추가: N팀의 drafting은 아직 UI 미구현 → 대기 화면
+        // (단계 O-2에서 draft-2team.html N팀 호환되면 'draft'로 변경)
+        if (isNTeam) {
+            return { page: 'waiting', extras: { reason: 'drafting_n', status } };
+        }
         return { page: 'draft' };
     }
 
@@ -257,6 +264,10 @@ function routeByStatus(room, rpsGames) {
     }
 
     if (status === 'done') {
+        // N팀의 done.html 호환은 단계 O-2에서 — 그 전까지는 대기 화면
+        if (isNTeam) {
+            return { page: 'waiting', extras: { reason: 'done_n' } };
+        }
         return { page: 'done' };
     }
 
@@ -288,11 +299,19 @@ function showWaitingScreen(extras) {
         },
         matchup: {
             title: '⏳ 진영 매칭 결정 대기 중',
-            body: '8픽이 완료되었습니다.<br>관리자가 진영 매칭을 결정하고 있습니다.'
+            body: '모든 픽이 완료되었습니다.<br>관리자가 진영 매칭을 결정하고 있습니다.'
         },
         side_rps: {
             title: '🥊 진영 가위바위보 대기 중',
             body: '진영 결정 가위바위보가 진행 중입니다.<br>본인의 매칭 차례가 오면 자동으로 화면이 바뀝니다.'
+        },
+        drafting_n: {
+            title: '🎯 드래프트 진행 중',
+            body: '4/6/8팀 드래프트 화면은 아직 개발 중입니다.<br>관리자 모니터 창에서 진행 상황을 확인할 수 있습니다.'
+        },
+        done_n: {
+            title: '🎉 드래프트 완료',
+            body: '모든 단계가 완료되었습니다!<br>관리자 화면에서 결과를 확인하세요.'
         },
         unknown: {
             title: '⏳ 대기 중',
