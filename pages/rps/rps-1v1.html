@@ -260,9 +260,28 @@
             return;
         }
 
+        // 단계 O: N팀 모드면 teams 캐시 미리 로드
+        if (currentRoom.team_count && currentRoom.team_count > 0) {
+            try {
+                const _c = initSupabase();
+                const { data: _teams } = await _c
+                    .from('teams')
+                    .select('*')
+                    .eq('room_code', currentRoom.room_code)
+                    .order('team_index');
+                if (_teams) setTeamsCache(_teams);
+            } catch (e) { console.warn('teams load failed:', e); }
+        }
+
         // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
         const claimed = await ensureLeaderClaim(currentRoom);
         if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
+
+        // 단계 O: N팀 모드면 가위바위보 1차가 없음 → main으로 (현재 status 라우팅)
+        if (isNTeamMode(currentRoom)) {
+            goToMain();
+            return;
+        }
 
         // 현재 단계 검증 (잘못된 시점에 접근한 경우 main.html로)
         if (!isCurrentRoundValid()) {
