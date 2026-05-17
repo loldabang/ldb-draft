@@ -261,10 +261,7 @@ function routeByStatus(room, rpsGames) {
     }
 
     if (status === 'done') {
-        // N팀의 done.html 호환은 단계 O-2에서 — 그 전까지는 대기 화면
-        if (isNTeam) {
-            return { page: 'waiting', extras: { reason: 'done_n' } };
-        }
+        // 단계 O-2: N팀도 done 페이지로 (done.html이 N팀 호환됨)
         return { page: 'done' };
     }
 
@@ -334,7 +331,33 @@ function showWaitingScreen(extras) {
 function _subscribeForStatusChange() {
     const client = initSupabase();
     if (!client) return;
-    const channel = client.channel('waiting_' + ROOM_CODE)
+    let _lastStatus = null;
+    let _routed = false;
+
+    // 현재 방 정보 한 번 fetch (lastStatus 기준점)
+    client.from('rooms').select('status').eq('room_code', ROOM_CODE).maybeSingle()
+        .then(({ data }) => {
+            if (data) _lastStatus = data.status;
+        }).catch(() => {});
+
+    const handleStatusChange = (newStatus) => {
+        if (_routed) return;
+        if (!newStatus || newStatus === _lastStatus) return;
+        console.log('[waiting] status changed:', _lastStatus, '→', newStatus);
+        _lastStatus = newStatus;
+        _routed = true;
+        // status에 따라 직접 라우팅 (goToMain 거쳐도 되지만, 직접 이동이 더 빠름)
+        if (newStatus === 'side_rps') return goToSide();
+        if (newStatus === 'drafting') return goToDraft();
+        if (newStatus === 'done') return goToDone();
+        if (newStatus === 'rps2') return goToRps(2);
+        if (newStatus === 'rps1') return goToRps(1);
+        // 그 외는 main.html을 다시 불러 정확한 라우팅
+        goToMain();
+    };
+
+    // 실시간 구독
+    client.channel('waiting_' + ROOM_CODE)
         .on('postgres_changes', {
             event: '*', schema: 'public', table: 'rooms',
             filter: `room_code=eq.${ROOM_CODE}`
@@ -351,11 +374,24 @@ function _subscribeForStatusChange() {
                 `;
                 return;
             }
-            // status가 바뀌었으면 main 재로딩
-            console.log('[waiting] status changed:', payload.new && payload.new.status);
-            goToMain();
+            handleStatusChange(payload.new && payload.new.status);
         })
         .subscribe();
+
+    // Realtime 실패 대비: 4초마다 polling
+    const pollInterval = setInterval(async () => {
+        if (_routed) { clearInterval(pollInterval); return; }
+        try {
+            const { data } = await client
+                .from('rooms')
+                .select('status')
+                .eq('room_code', ROOM_CODE)
+                .maybeSingle();
+            if (data && data.status !== _lastStatus) {
+                handleStatusChange(data.status);
+            }
+        } catch (e) {}
+    }, 4000);
 }
 
 // ============================================================================
