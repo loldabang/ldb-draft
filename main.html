@@ -30,33 +30,52 @@
     // 5. 방 상태에 따라 적절한 페이지로 리다이렉트
     // ========================================================================
     (async function() {
-        // 1. URL 파라미터 검증
-        const validation = validateUrlParams();
-        if (!validation.ok) {
-            showFatalError(validation.message);
-            return;
+        try {
+            console.log('[main] start');
+            // 1. URL 파라미터 검증
+            const validation = validateUrlParams();
+            if (!validation.ok) {
+                console.warn('[main] validate fail:', validation.message);
+                showFatalError(validation.message);
+                return;
+            }
+
+            // 2. Supabase 초기화
+            const client = initSupabase();
+            if (!client) {
+                console.warn('[main] supabase init fail');
+                showFatalError('Supabase 설정이 필요합니다. (관리자에게 문의)');
+                return;
+            }
+
+            // 3. 방 로드 + 토큰 검증
+            console.log('[main] loading room...');
+            const room = await validateAndLoadRoom();
+            if (!room) {
+                console.warn('[main] room load fail');
+                showFatalError('존재하지 않거나 만료된 방이거나, 인증 정보가 잘못되었습니다.');
+                return;
+            }
+            console.log('[main] room loaded:', { status: room.status });
+
+            // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
+            console.log('[main] ensuring claim...');
+            const claimed = await ensureLeaderClaim(room);
+            console.log('[main] claim result:', claimed);
+            if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
+
+            // 4. 가위바위보 게임 정보 로드
+            const rpsGames = await loadRpsGames();
+            console.log('[main] rps games:', rpsGames);
+
+            // 5. 상태에 맞는 페이지로 라우팅
+            const route = routeByStatus(room, rpsGames);
+            console.log('[main] routing to:', route);
+            goToPageByName(route.page, route.extras);
+        } catch (e) {
+            console.error('[main] uncaught error:', e);
+            showFatalError('초기화 중 오류: ' + (e && e.message ? e.message : e));
         }
-
-        // 2. Supabase 초기화
-        const client = initSupabase();
-        if (!client) {
-            showFatalError('Supabase 설정이 필요합니다. (관리자에게 문의)');
-            return;
-        }
-
-        // 3. 방 로드 + 토큰 검증
-        const room = await validateAndLoadRoom();
-        if (!room) {
-            showFatalError('존재하지 않거나 만료된 방이거나, 인증 정보가 잘못되었습니다.');
-            return;
-        }
-
-        // 4. 가위바위보 게임 정보 로드
-        const rpsGames = await loadRpsGames();
-
-        // 5. 상태에 맞는 페이지로 라우팅
-        const route = routeByStatus(room, rpsGames);
-        goToPageByName(route.page, route.extras);
     })();
     </script>
 </body>
