@@ -461,7 +461,8 @@
                     // 단계 O-2: N팀 — 모든 픽 끝나면 매칭 결정 대기 화면으로
                     goToMain();
                 } else if (currentRoom.status === 'side_rps') {
-                    goToMain();
+                    // 단계 O-2: N팀 — 매칭 결정 끝, 진영 가위바위보 페이지로
+                    goToSide();
                 }
             },
             onDraft: async () => {
