@@ -239,34 +239,39 @@
 
         <!-- 드래프트 본문 -->
         <div id="draftView" style="display:none;">
-            <!-- 상태 + 진행 -->
-            <div class="card">
-                <div id="draftStatusBox" class="draft-status">
-                    <div class="current-text" id="currentText">로딩 중...</div>
-                    <div class="draft-progress" id="draftProgress"></div>
-                </div>
-
-                <!-- 단계 D/E: 확정 버튼 영역 (본인 차례일 때만) -->
-                <div id="confirmPickArea" class="confirm-pick-area" style="display:none;">
-                    <div class="confirm-pick-label" id="confirmPickLabel">멤버를 선택해주세요</div>
-                    <button class="btn" id="confirmPickBtn" disabled onclick="onConfirmPick()">✅ 픽 확정</button>
-                </div>
-            </div>
-
-            <!-- 2단 그리드: 왼쪽 멤버 / 오른쪽 양 팀 -->
+            <!-- 2단 그리드: 왼쪽 = 상태+멤버+내팀 / 오른쪽 = 상대팀들 -->
             <div class="split-grid">
-                <!-- 왼쪽: 픽 가능한 멤버 -->
-                <div class="card">
-                    <div class="section-title">📋 픽 가능한 멤버</div>
-                    <div id="membersGrid" class="members-grid"></div>
-                </div>
+                <!-- 왼쪽: 상태 + 진행 + 픽 가능 멤버 + 내 팀 -->
+                <div>
+                    <!-- 상태 + 진행 -->
+                    <div class="card">
+                        <div id="draftStatusBox" class="draft-status">
+                            <div class="current-text" id="currentText">로딩 중...</div>
+                            <div class="draft-progress" id="draftProgress"></div>
+                        </div>
 
-                <!-- 오른쪽: 내 팀 (위) / 상대 팀 (아래) -->
-                <div class="split-grid-right">
+                        <!-- 단계 D/E: 확정 버튼 영역 (본인 차례일 때만) -->
+                        <div id="confirmPickArea" class="confirm-pick-area" style="display:none;">
+                            <div class="confirm-pick-label" id="confirmPickLabel">멤버를 선택해주세요</div>
+                            <button class="btn" id="confirmPickBtn" disabled onclick="onConfirmPick()">✅ 픽 확정</button>
+                        </div>
+                    </div>
+
+                    <!-- 픽 가능한 멤버 -->
+                    <div class="card">
+                        <div class="section-title">📋 픽 가능한 멤버</div>
+                        <div id="membersGrid" class="members-grid"></div>
+                    </div>
+
+                    <!-- 내 팀 (단계 O-3 fix #1: 왼쪽으로 이동) -->
                     <div class="card">
                         <div class="section-title" id="myTeamHeader">🏆 내 팀</div>
                         <div id="myTeamBox"></div>
                     </div>
+                </div>
+
+                <!-- 오른쪽: 상대 팀들 (2팀이면 1개, N팀이면 N-1개) -->
+                <div class="split-grid-right">
                     <div class="card">
                         <div class="section-title" id="otherTeamHeader">🤝 상대 팀</div>
                         <div id="otherTeamBox"></div>
@@ -787,8 +792,7 @@
     }
 
     function renderTeams2() {
-        // 기존 2팀 흐름
-        // ROLE 기준으로 내/상대 결정
+        // 기존 2팀 흐름 — myTeamBox(왼쪽), otherTeamBox(오른쪽)
         const myTeamLabel = ROLE === 'leader1' ? '1팀' : '2팀';
         const otherTeamLabel = ROLE === 'leader1' ? '2팀' : '1팀';
         const myLeaderName = ROLE === 'leader1' ? currentRoom.leader1_name : currentRoom.leader2_name;
@@ -801,8 +805,8 @@
         const myPicks = currentDrafts.filter(d => d.picker === myRole).map(d => d.picked_member);
         const otherPicks = currentDrafts.filter(d => d.picker === otherRole).map(d => d.picked_member);
 
-        // 2팀 컨테이너 보장 (N팀에서 다시 2팀으로 돌아가는 경우는 없지만 안전)
-        _ensure2TeamHtml();
+        // 단계 O-3 fix #1: 오른쪽 컨테이너를 기본 (2팀) 형태로 복원
+        _ensureRightContainerDefault();
 
         $('myTeamHeader').innerText = `🏆 내 팀 (${myTeamLabel}) — ${1 + myPicks.length}명`;
         $('otherTeamHeader').innerText = `🤝 상대 팀 (${otherTeamLabel}) — ${1 + otherPicks.length}명`;
@@ -833,16 +837,12 @@
         $('otherTeamBox').innerHTML = buildBox(otherLeaderName, otherLeaderScore, otherPicks);
     }
 
-    function _ensure2TeamHtml() {
-        // split-grid-right가 N팀 그리드로 바뀌어있으면 2팀 형태로 복원
+    function _ensureRightContainerDefault() {
+        // 오른쪽 컨테이너에 otherTeamBox가 있는지 확인 (N팀 후 2팀으로 돌아가는 경우 등)
         const right = document.querySelector('.split-grid-right');
         if (!right) return;
-        if (!$('myTeamBox') || !$('otherTeamBox')) {
+        if (!$('otherTeamBox')) {
             right.innerHTML = `
-                <div class="card">
-                    <div class="section-title" id="myTeamHeader">🏆 내 팀</div>
-                    <div id="myTeamBox"></div>
-                </div>
                 <div class="card">
                     <div class="section-title" id="otherTeamHeader">🤝 상대 팀</div>
                     <div id="otherTeamBox"></div>
@@ -852,9 +852,7 @@
     }
 
     function renderTeamsN() {
-        // N팀 그리드 — 내 팀은 강조, 다른 팀들은 일반
-        const right = document.querySelector('.split-grid-right');
-        if (!right) return;
+        // 단계 O-3 fix #1: 내 팀은 왼쪽 myTeamBox, 상대 팀들은 오른쪽 그리드
         const teamCount = currentRoom.team_count;
         const myIdx = getMyTeamIndex();
 
@@ -864,49 +862,70 @@
         members.forEach(m => {
             if (m && typeof m === 'object' && m.name) scoreMap[m.name] = m.score;
         });
-        // 팀장도 점수 맵에 추가
         currentTeams.forEach(t => { if (t.leader_name) scoreMap[t.leader_name] = t.leader_score; });
 
-        // 그리드 컨테이너로 교체
-        let gridCols = 'repeat(2, 1fr)';
-        if (teamCount === 6) gridCols = 'repeat(3, 1fr)';
-        else if (teamCount === 8) gridCols = 'repeat(4, 1fr)';
-
-        right.innerHTML = `<div class="card" style="padding:10px;">
-            <div class="section-title" style="text-align:center; margin-bottom:8px;">🏆 ${teamCount}팀 진행 상황</div>
-            <div id="nTeamsBoxContainer" style="display:grid; grid-template-columns:${gridCols}; gap:8px;"></div>
-        </div>`;
-
-        const container = $('nTeamsBoxContainer');
         const scoreBadge = (sc) => (sc !== null && sc !== undefined && sc !== '')
-            ? `<span class="member-score-badge" style="font-size:10px; padding:1px 6px;">${sc}</span>` : '';
+            ? `<span class="member-score-badge">${sc}</span>` : '';
 
-        currentTeams.forEach(t => {
-            const isMine = (t.team_index === myIdx);
+        // 1) 왼쪽 내 팀 그리기 (기존 myTeamBox 사용)
+        const myTeam = currentTeams.find(t => t.team_index === myIdx);
+        if (myTeam) {
+            const myPicks = currentDrafts.filter(d => d.picker_team_index === myIdx)
+                                          .sort((a, b) => a.pick_number - b.pick_number);
+            const myTotal = (myTeam.leader_score || 0) + myPicks.reduce((s, p) => s + (Number(scoreMap[p.picked_member]) || 0), 0);
+            $('myTeamHeader').innerText = `🏆 내 팀 (${myIdx}팀) — ${1 + myPicks.length}명 / 합산 ${myTotal}점`;
+            let html = `<div class="team-vbox-row leader"><span>👑 ${escapeHtml(myTeam.leader_name || '(미정)')}</span>${scoreBadge(myTeam.leader_score)}</div>`;
+            for (let i = 0; i < 4; i++) {
+                if (i < myPicks.length) {
+                    html += `<div class="team-vbox-row"><span>${escapeHtml(myPicks[i].picked_member)}</span>${scoreBadge(scoreMap[myPicks[i].picked_member])}</div>`;
+                } else {
+                    html += `<div class="team-vbox-row empty">(픽 대기)</div>`;
+                }
+            }
+            if ($('myTeamBox')) $('myTeamBox').innerHTML = html;
+        }
+
+        // 2) 오른쪽 상대 팀들 그리기 (그리드)
+        const right = document.querySelector('.split-grid-right');
+        if (!right) return;
+
+        const otherTeams = currentTeams.filter(t => t.team_index !== myIdx);
+        // 그리드 컬럼 수: 상대 1팀=1, 3팀=1(세로), 5팀=2, 7팀=2
+        let gridCols = '1fr';
+        if (otherTeams.length >= 5) gridCols = '1fr 1fr';
+        else if (otherTeams.length >= 3) gridCols = '1fr';
+
+        right.innerHTML = `
+            <div class="card" style="padding:10px;">
+                <div class="section-title" style="text-align:center; margin-bottom:8px;">
+                    🤝 상대 팀 (${otherTeams.length}팀)
+                </div>
+                <div id="otherTeamsGridContainer" style="display:grid; grid-template-columns:${gridCols}; gap:6px;"></div>
+            </div>
+        `;
+        const container = document.getElementById('otherTeamsGridContainer');
+
+        otherTeams.forEach(t => {
             const picks = currentDrafts.filter(d => d.picker_team_index === t.team_index)
                                        .sort((a, b) => a.pick_number - b.pick_number);
             const total = (t.leader_score || 0) + picks.reduce((s, p) => s + (Number(scoreMap[p.picked_member]) || 0), 0);
 
-            let rowsHtml = `<div class="team-vbox-row leader" style="font-size:11px; padding:5px 7px;">
+            let rowsHtml = `<div class="team-vbox-row leader" style="font-size:11px; padding:4px 6px;">
                 <span>👑 ${escapeHtml(t.leader_name || '?')}</span>${scoreBadge(t.leader_score)}
             </div>`;
             for (let i = 0; i < 4; i++) {
                 if (i < picks.length) {
-                    rowsHtml += `<div class="team-vbox-row" style="font-size:11px; padding:5px 7px;">
+                    rowsHtml += `<div class="team-vbox-row" style="font-size:11px; padding:4px 6px;">
                         <span>${escapeHtml(picks[i].picked_member)}</span>${scoreBadge(scoreMap[picks[i].picked_member])}
                     </div>`;
                 } else {
-                    rowsHtml += `<div class="team-vbox-row empty" style="font-size:11px; padding:5px 7px;">(픽 대기)</div>`;
+                    rowsHtml += `<div class="team-vbox-row empty" style="font-size:11px; padding:4px 6px;">(픽 대기)</div>`;
                 }
             }
-            const myBadge = isMine ? ' ⭐' : '';
-            const myStyle = isMine
-                ? 'border:2px solid #fbbf24; background:linear-gradient(135deg, #fffbeb, #fef3c7); box-shadow:0 0 0 3px rgba(251, 191, 36, 0.25);'
-                : 'border:1px solid #e5e7eb; background:#fff;';
             const box = document.createElement('div');
-            box.style.cssText = `${myStyle} border-radius:10px; padding:8px;`;
-            box.innerHTML = `<div style="font-size:12px; font-weight:800; text-align:center; margin-bottom:5px; padding-bottom:4px; border-bottom:1px dashed rgba(0,0,0,0.1);">
-                ${t.team_index}팀${myBadge} <span style="font-size:10px; color:#6b7280; font-weight:700;">(${total}점, ${1 + picks.length}명)</span>
+            box.style.cssText = 'border:1px solid #e5e7eb; background:#fff; border-radius:8px; padding:6px;';
+            box.innerHTML = `<div style="font-size:11px; font-weight:800; text-align:center; margin-bottom:4px; padding-bottom:3px; border-bottom:1px dashed rgba(0,0,0,0.1); color:#1f2937;">
+                ${t.team_index}팀 <span style="font-size:9px; color:#6b7280; font-weight:700;">(${total}점, ${1 + picks.length}명)</span>
             </div>${rowsHtml}`;
             container.appendChild(box);
         });
