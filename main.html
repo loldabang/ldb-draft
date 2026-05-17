@@ -56,13 +56,27 @@
                 showFatalError('존재하지 않거나 만료된 방이거나, 인증 정보가 잘못되었습니다.');
                 return;
             }
-            console.log('[main] room loaded:', { status: room.status });
+            console.log('[main] room loaded:', { status: room.status, team_count: room.team_count });
+
+            // 단계 O: N팀 모드면 teams 캐시 미리 로드 (display name 등에서 사용)
+            if (room.team_count && room.team_count > 0) {
+                try {
+                    const { data: teams } = await client
+                        .from('teams')
+                        .select('*')
+                        .eq('room_code', room.room_code)
+                        .order('team_index');
+                    if (teams) setTeamsCache(teams);
+                } catch (e) {
+                    console.warn('[main] teams load failed:', e);
+                }
+            }
 
             // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
             console.log('[main] ensuring claim...');
             const claimed = await ensureLeaderClaim(room);
             console.log('[main] claim result:', claimed);
-            if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
+            if (!claimed) return;
 
             // 4. 가위바위보 게임 정보 로드
             const rpsGames = await loadRpsGames();
