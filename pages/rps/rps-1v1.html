@@ -232,6 +232,7 @@
     let currentRps = null;
     let isProcessing = false;  // 클릭 후 응답 대기 중 중복 클릭 방지
     let lastWinnerSeen = null; // 결과 공개 애니메이션 후 라우팅 트리거용
+    let _drawResetCount = 0;   // 단계 O-3 (fix #2): 비김 후 reset 발생 횟수 추적
 
     // 단계 O-3 (fix #2): 비김 큰 오버레이 — N팀과 동일한 디자인
     let _lastDrawEffectKey = null;
@@ -363,6 +364,12 @@
                     return;
                 }
 
+                // 단계 O-3 (fix #2): 양쪽 choice가 NULL로 reset됐는지 감지
+                //   (비김 처리 후 SQL이 reset하면 양쪽 choice가 다시 NULL로)
+                if (newRps.leader1_choice == null && newRps.leader2_choice == null) {
+                    _drawResetCount++;
+                }
+
                 // 비김 감지 — payload.new에서 직접 확인
                 // 단계 O-3 (fix #1): SQL이 'draw' winner 즉시 reset해서 양 팀 모두에게 안 보일 수 있음
                 //   → 양 선택값으로 직접 클라이언트 판정 추가
@@ -374,7 +381,8 @@
                     isDraw = true;
                 }
                 if (isDraw) {
-                    const drawKey = 'draw_' + ROUND + '_' + (newRps.leader1_choice || '') + '_' + (newRps.leader2_choice || '');
+                    // 단계 O-3 (fix #2): drawKey에 reset 카운트 포함 — 같은 choice 연속 비김도 다른 키
+                    const drawKey = 'draw_' + ROUND + '_' + (newRps.leader1_choice || '') + '_' + (newRps.leader2_choice || '') + '_n' + _drawResetCount;
                     if (lastWinnerSeen !== drawKey) {
                         lastWinnerSeen = drawKey;
                         // 단계 O-3 (fix #2): 큰 오버레이 (N팀과 동일)
@@ -537,8 +545,8 @@
             // 단계 G: RPC 응답으로 비김 즉시 감지 (SQL이 즉시 reset해서 realtime 너무 빠름)
             const respWinner = data && data[0] && data[0].winner;
             if (respWinner === 'draw') {
-                // 단계 O-3 (fix #2): 큰 오버레이 (N팀과 동일)
-                const drawKey = 'rpcDraw_' + ROUND + '_' + Date.now();
+                // 단계 O-3 (fix #2): 큰 오버레이 (N팀과 동일) + reset 카운트 포함
+                const drawKey = 'rpcDraw_' + ROUND + '_n' + _drawResetCount + '_' + Date.now();
                 _showDrawEffect(drawKey);
                 // 화면도 즉시 안내 (잠시)
                 const wb = $('waitingBox');
