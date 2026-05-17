@@ -726,8 +726,25 @@
         const grid = $('membersGrid');
         grid.innerHTML = '';
 
+        // 단계 O-3 (fix #3): 픽된 멤버 + 팀장은 왼쪽 그리드에서 제외 (오른쪽 팀 박스에서 볼 수 있음)
+        const visibleMembers = members.filter(rawM => {
+            const memberName = (rawM && typeof rawM === 'object') ? (rawM.name || '') : String(rawM);
+            if (!memberName) return false;
+            if (leaderNameToTeamIdx[memberName] !== undefined) return false; // 팀장 제외
+            if (pickedMap[memberName]) return false; // 이미 픽된 멤버 제외
+            return true;
+        });
+
+        if (visibleMembers.length === 0) {
+            grid.innerHTML = `<div style="text-align:center; color:#6b7280; padding:30px 12px; font-size:13px;">
+                모든 멤버가 픽되었습니다.<br>
+                <span style="color:#9ca3af; font-size:11px;">다음 단계를 기다려주세요.</span>
+            </div>`;
+            return;
+        }
+
         // 단계 I: members가 객체 배열 {name, score}
-        members.forEach(rawM => {
+        visibleMembers.forEach(rawM => {
             const memberName = (rawM && typeof rawM === 'object') ? (rawM.name || '') : String(rawM);
             const memberScore = (rawM && typeof rawM === 'object') ? rawM.score : null;
 
@@ -735,35 +752,11 @@
             btn.className = 'member-btn';
             btn.type = 'button';
 
-            const leaderTeamIdx = leaderNameToTeamIdx[memberName]; // undefined면 일반 멤버
-            const isLeader = !!leaderTeamIdx;
-            const isMine = memberName === myName;
-            const pickedBy = pickedMap[memberName];
-            const pickedTeamIdx = pickedTeamMap[memberName];
-
             // 점수 뱃지 HTML
             const scoreHtml = (memberScore !== null && memberScore !== undefined && memberScore !== '')
                 ? `<span class="member-score-badge">${memberScore}</span>` : '';
 
-            if (isLeader) {
-                btn.classList.add('is-leader');
-                if (isMine) btn.classList.add('is-mine');
-                const teamLabel = `${leaderTeamIdx}팀 팀장`;
-                btn.innerHTML = `<span class="member-name-wrap">👑 ${escapeHtml(memberName)}${scoreHtml}</span><span class="leader-tag">${teamLabel}</span>`;
-                btn.disabled = true;
-            } else if (pickedBy) {
-                // 단계 O-2: N팀이면 picker_team_index 사용
-                const ownerClass = (isNTeam && pickedTeamIdx) ? `team-${pickedTeamIdx}` : pickedBy;
-                btn.classList.add(`picked-${ownerClass}`);
-                let teamLabel;
-                if (isNTeam && pickedTeamIdx) {
-                    teamLabel = `${pickedTeamIdx}팀`;
-                } else {
-                    teamLabel = pickedBy === 'leader1' ? '1팀' : '2팀';
-                }
-                btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span><span class="pick-tag">→ ${teamLabel}</span>`;
-                btn.disabled = true;
-            } else if (isMyTurn) {
+            if (isMyTurn) {
                 btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
                 const orderIdx = pendingPicks.indexOf(memberName);
                 if (orderIdx !== -1) {
