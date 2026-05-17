@@ -15,8 +15,20 @@ const SUPABASE_KEY = 'sb_publishable_zSH-Q5GCTXkRJ0UDd-IrlQ_DYKSkQzc';
 // ============================================================================
 const urlParams = new URLSearchParams(window.location.search);
 const ROOM_CODE = urlParams.get('room');
-const ROLE = urlParams.get('role');         // 'leader1' or 'leader2'
+const ROLE = urlParams.get('role');         // 'leader1', 'leader2', ..., 'leader8'
 const TOKEN = urlParams.get('token');
+
+// 단계 O: ROLE에서 team_index 추출 ('leader1'→1, 'leader8'→8)
+function getMyTeamIndex() {
+    if (!ROLE) return null;
+    const m = String(ROLE).match(/^leader(\d+)$/);
+    return m ? parseInt(m[1], 10) : null;
+}
+
+// N팀 모드인지 (room.team_count > 2)
+function isNTeamMode(room) {
+    return room && room.team_count && room.team_count > 2;
+}
 
 // ============================================================================
 // 3. Supabase 클라이언트 (전역)
@@ -164,19 +176,42 @@ function validateUrlParams() {
     if (!ROOM_CODE || !ROLE || !TOKEN) {
         return { ok: false, message: '잘못된 링크입니다. (필수 정보 누락)' };
     }
-    if (ROLE !== 'leader1' && ROLE !== 'leader2') {
+    // 단계 O: leader1 ~ leader8 허용
+    if (!/^leader[1-8]$/.test(ROLE)) {
         return { ok: false, message: '잘못된 역할입니다.' };
     }
     return { ok: true };
 }
 
 // 방을 로드하고 토큰이 일치하는지 검증. 성공 시 room 반환, 실패 시 null
+// 단계 O: N팀에서는 토큰이 teams 테이블에 저장됨 → 거기서 검증
 async function validateAndLoadRoom() {
     const room = await loadRoom();
     if (!room) return null;
-    const expectedToken = ROLE === 'leader1' ? room.leader1_token : room.leader2_token;
-    if (expectedToken !== TOKEN) return null;
-    return room;
+    const myIdx = getMyTeamIndex();
+    if (!myIdx) return null;
+
+    // 1, 2팀이고 rooms 테이블에 토큰이 있으면 그쪽으로 검증 (2팀 흐름 호환)
+    if (myIdx === 1 && room.leader1_token === TOKEN) return room;
+    if (myIdx === 2 && room.leader2_token === TOKEN) return room;
+
+    // 3+팀이거나 위 검증 실패 시 teams 테이블에서 검증
+    if (room.team_count && room.team_count > 0) {
+        try {
+            const client = initSupabase();
+            const { data: team } = await client
+                .from('teams')
+                .select('*')
+                .eq('room_code', ROOM_CODE)
+                .eq('team_index', myIdx)
+                .maybeSingle();
+            if (team && team.leader_token === TOKEN) return room;
+        } catch (e) {
+            console.warn('teams token check failed:', e);
+        }
+    }
+
+    return null;
 }
 
 // ============================================================================
@@ -321,13 +356,27 @@ function showFatalError(message) {
 }
 
 // 역할 이름 / 닉네임 헬퍼
+// 단계 O: N팀 모드용 teams 캐시 (페이지가 setupTeamsCache로 한 번 채워둠)
+let _teamsCache = null;
+function setTeamsCache(teams) { _teamsCache = teams || []; }
+function getTeamByIndex(idx) {
+    if (!_teamsCache) return null;
+    return _teamsCache.find(t => t.team_index === idx) || null;
+}
+
 function getMyDisplayName(room) {
     if (!room) return ROLE === 'leader1' ? '팀장 1' : '팀장 2';
-    if (ROLE === 'leader1') return room.leader1_name || '팀장 1';
-    return room.leader2_name || '팀장 2';
+    const myIdx = getMyTeamIndex();
+    // 1, 2팀은 rooms 테이블에서
+    if (myIdx === 1) return room.leader1_name || '팀장 1';
+    if (myIdx === 2) return room.leader2_name || '팀장 2';
+    // 3+팀은 teams 캐시에서
+    const team = getTeamByIndex(myIdx);
+    return (team && team.leader_name) || ('팀장 ' + (myIdx || '?'));
 }
 
 function getOtherDisplayName(room) {
+    // 2팀일 때만 의미 있음 (N팀에선 상대가 여러 명)
     if (!room) return ROLE === 'leader1' ? '팀장 2' : '팀장 1';
     if (ROLE === 'leader1') return room.leader2_name || '팀장 2';
     return room.leader1_name || '팀장 1';
@@ -336,7 +385,15 @@ function getOtherDisplayName(room) {
 function getRoleDisplay(role, room) {
     if (!room) return role === 'leader1' ? '팀장 1' : '팀장 2';
     if (role === 'leader1') return room.leader1_name || '팀장 1';
-    return room.leader2_name || '팀장 2';
+    if (role === 'leader2') return room.leader2_name || '팀장 2';
+    // leader3+ → teams 캐시
+    const m = String(role).match(/^leader(\d+)$/);
+    if (m) {
+        const idx = parseInt(m[1], 10);
+        const team = getTeamByIndex(idx);
+        if (team && team.leader_name) return team.leader_name;
+    }
+    return role;
 }
 
 // 가위바위보 선택 → 이모지/한글
@@ -415,7 +472,28 @@ async function ensureLeaderClaim(room) {
     }
 
     // 첫 접속: 사용자에게 확인 화면 표시
-    const myName = (room && (ROLE === 'leader1' ? room.leader1_name : room.leader2_name)) || ROLE;
+    // 단계 O: N팀이면 teams 테이블에서 이름 조회
+    const myIdx = getMyTeamIndex();
+    let myName = null;
+    if (room) {
+        if (myIdx === 1) myName = room.leader1_name;
+        else if (myIdx === 2) myName = room.leader2_name;
+    }
+    if (!myName && myIdx) {
+        // teams 테이블에서 조회
+        try {
+            const client = initSupabase();
+            const { data: team } = await client
+                .from('teams')
+                .select('leader_name')
+                .eq('room_code', ROOM_CODE)
+                .eq('team_index', myIdx)
+                .maybeSingle();
+            if (team) myName = team.leader_name;
+        } catch (e) {}
+    }
+    if (!myName) myName = ROLE;
+
     console.log('[claim] showing modal for:', myName);
     const userOk = await _showClaimConfirmScreen(myName);
     console.log('[claim] modal result:', userOk);
@@ -434,36 +512,53 @@ async function _tryClaim(silent) {
     const client = initSupabase();
     if (!client) {
         if (!silent) showFatalError('Supabase 연결 실패');
-        return silent ? true : false;  // silent 모드는 통과
+        return silent ? true : false;
     }
     const clientId = _getOrCreateClientId(ROOM_CODE, ROLE);
+    const myIdx = getMyTeamIndex();
+    // 단계 O: team_index >= 3 이면 claim_team_seat (N팀), 1/2면 기존 claim_leader_seat
+    const rpcName = (myIdx && myIdx >= 3) ? 'claim_team_seat' : 'claim_leader_seat';
     try {
-        const { data, error } = await client.rpc('claim_leader_seat', {
+        const { data, error } = await client.rpc(rpcName, {
             p_room_code: ROOM_CODE,
             p_leader_token: TOKEN,
             p_claim_id: clientId
         });
         if (error) {
-            console.warn('claim_leader_seat error:', error);
+            console.warn(rpcName + ' error:', error);
+            // 단계 O: claim_leader_seat이 실패했고 N팀일 수 있으면 claim_team_seat 재시도
+            if (rpcName === 'claim_leader_seat' && myIdx && myIdx <= 2) {
+                console.log('[claim] retrying with claim_team_seat...');
+                try {
+                    const { data: data2, error: err2 } = await client.rpc('claim_team_seat', {
+                        p_room_code: ROOM_CODE,
+                        p_leader_token: TOKEN,
+                        p_claim_id: clientId
+                    });
+                    if (!err2 && data2 && data2[0] && data2[0].success) {
+                        _markClaimVerified(ROOM_CODE, ROLE);
+                        return true;
+                    }
+                } catch (e) {}
+            }
             if (!silent) showFatalError('접속 확인 실패: ' + error.message);
-            return silent ? true : false;  // silent 모드는 통과 (이미 검증된 사용자)
+            return silent ? true : false;
         }
         const r = data && data[0];
         if (!r) {
-            console.warn('claim_leader_seat: empty response');
+            console.warn(rpcName + ': empty response');
             return silent ? true : false;
         }
         if (!r.success) {
-            // 명확히 거부된 경우만 막기 (silent 모드라도)
             if (!silent) _showClaimDenied(r.message || '접속이 거부되었습니다.');
             return false;
         }
         _markClaimVerified(ROOM_CODE, ROLE);
         return true;
     } catch (e) {
-        console.warn('claim_leader_seat exception:', e);
+        console.warn(rpcName + ' exception:', e);
         if (!silent) showFatalError('네트워크 오류: ' + (e && e.message ? e.message : e));
-        return silent ? true : false;  // silent 모드는 통과
+        return silent ? true : false;
     }
 }
 
