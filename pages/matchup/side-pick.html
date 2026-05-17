@@ -442,11 +442,23 @@
         const iLost = winner && winner !== 'draw' && !iWon;
 
         // 가위바위보 진행 중
-        if (!winner || winner === 'draw') {
+        // 단계 O-3 (fix #1): SQL이 winner='draw' 즉시 reset해서 양 팀 모두에게 안 보일 수 있음
+        //   → 양 선택값으로 클라이언트 판정 추가
+        let isDraw = (winner === 'draw');
+        if (!isDraw && _myMatchupRps
+            && _myMatchupRps.leader1_choice && _myMatchupRps.leader2_choice
+            && _myMatchupRps.leader1_choice === _myMatchupRps.leader2_choice
+            && !_myMatchupRps.winner) {
+            isDraw = true;
+        }
+
+        if (!winner || isDraw) {
             // 비김 시 _pendingRpsChoice도 reset + 큰 효과 1회
-            if (winner === 'draw') {
+            if (isDraw) {
                 _pendingRpsChoice = null;
-                if (_myMatchupRps && _myMatchupRps.id) _showDrawEffect(_myMatchupRps.id);
+                // 단계 O-3 (fix #2): unique key = rps_id + choices (양 선택이 같은 비김도 유니크)
+                const drawKey = (_myMatchupRps ? _myMatchupRps.id : 'rps') + '-' + (_myMatchupRps.leader1_choice || '') + '-' + (_myMatchupRps.leader2_choice || '');
+                _showDrawEffect(drawKey);
             }
 
             const myChoice = _myRole === 'a'
@@ -477,7 +489,7 @@
                 <div class="card" style="padding:16px;">
                     <div style="text-align:center; margin-bottom:12px;">
                         <h2 style="font-size:15px; margin-bottom:4px;">🥊 매칭 ${_myMatchup.match_index}</h2>
-                        ${winner === 'draw' ? '<p style="color:#f59e0b; font-size:12px;">🤝 비김! 다시 시작합니다</p>' : '<p style="color:#6b7280; font-size:12px;">가위바위보로 진영 선택권을 정합니다</p>'}
+                        ${isDraw ? '<p style="color:#f59e0b; font-size:12px;">🤝 비김! 다시 시작합니다</p>' : '<p style="color:#6b7280; font-size:12px;">가위바위보로 진영 선택권을 정합니다</p>'}
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 40px 1fr; gap:8px; align-items:center; margin-bottom:14px;">
                         <div style="text-align:center; padding:10px; background:linear-gradient(135deg, #fef3c7, #fde68a); border:2px solid #fbbf24; border-radius:10px;">
