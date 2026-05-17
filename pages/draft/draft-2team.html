@@ -239,39 +239,41 @@
 
         <!-- 드래프트 본문 -->
         <div id="draftView" style="display:none;">
-            <!-- 2단 그리드: 왼쪽 = 상태+멤버+내팀 / 오른쪽 = 상대팀들 -->
-            <div class="split-grid">
-                <!-- 왼쪽: 상태 + 진행 + 픽 가능 멤버 + 내 팀 -->
-                <div>
-                    <!-- 상태 + 진행 -->
-                    <div class="card">
-                        <div id="draftStatusBox" class="draft-status">
-                            <div class="current-text" id="currentText">로딩 중...</div>
-                            <div class="draft-progress" id="draftProgress"></div>
-                        </div>
-
-                        <!-- 단계 D/E: 확정 버튼 영역 (본인 차례일 때만) -->
-                        <div id="confirmPickArea" class="confirm-pick-area" style="display:none;">
-                            <div class="confirm-pick-label" id="confirmPickLabel">멤버를 선택해주세요</div>
-                            <button class="btn" id="confirmPickBtn" disabled onclick="onConfirmPick()">✅ 픽 확정</button>
-                        </div>
-                    </div>
-
-                    <!-- 픽 가능한 멤버 -->
-                    <div class="card">
-                        <div class="section-title">📋 픽 가능한 멤버</div>
-                        <div id="membersGrid" class="members-grid"></div>
-                    </div>
-
-                    <!-- 내 팀 (단계 O-3 fix #1: 왼쪽으로 이동) -->
+            <!-- 단계 O-3 (fix #1): 3단 레이아웃 (왼쪽=헤더+내팀 / 중앙=상태+멤버 / 오른쪽=상대팀들) -->
+            <div class="draft-3col-grid">
+                <!-- ── 왼쪽 ───────────────────────────────── -->
+                <div id="leftColumn">
+                    <!-- 헤더는 init 시 headerArea로 별도 렌더되지만, 모바일 호환을 위해 여기 위치 -->
+                    <!-- 내 팀 -->
                     <div class="card">
                         <div class="section-title" id="myTeamHeader">🏆 내 팀</div>
                         <div id="myTeamBox"></div>
                     </div>
                 </div>
 
-                <!-- 오른쪽: 상대 팀들 (2팀이면 1개, N팀이면 N-1개) -->
-                <div class="split-grid-right">
+                <!-- ── 중앙: 상태 + 진행 + 멤버 ───────────────────── -->
+                <div id="centerColumn">
+                    <div class="card">
+                        <div id="draftStatusBox" class="draft-status">
+                            <div class="current-text" id="currentText">로딩 중...</div>
+                            <div class="draft-progress" id="draftProgress"></div>
+                        </div>
+
+                        <!-- 확정 버튼 영역 -->
+                        <div id="confirmPickArea" class="confirm-pick-area" style="display:none;">
+                            <div class="confirm-pick-label" id="confirmPickLabel">멤버를 선택해주세요</div>
+                            <button class="btn" id="confirmPickBtn" disabled onclick="onConfirmPick()">✅ 픽 확정</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="section-title">📋 픽 가능한 멤버</div>
+                        <div id="membersGrid" class="members-grid"></div>
+                    </div>
+                </div>
+
+                <!-- ── 오른쪽: 상대 팀들 ───────────────────── -->
+                <div id="rightColumn" class="split-grid-right">
                     <div class="card">
                         <div class="section-title" id="otherTeamHeader">🤝 상대 팀</div>
                         <div id="otherTeamBox"></div>
@@ -558,8 +560,9 @@
         }
 
         if (successCount > 0) {
-            const submittedNames = toSubmit.slice(0, successCount).join(', ');
-            showToast(submittedNames + ' 픽 완료!');
+            // 단계 O-3 (fix #1): 픽 완료 toast 제거 — 화면에 이미 결과가 보이므로 불필요
+            // const submittedNames = toSubmit.slice(0, successCount).join(', ');
+            // showToast(submittedNames + ' 픽 완료!');
         }
         pendingPicks = [];
         currentDrafts = await loadDrafts();
@@ -890,14 +893,13 @@
         if (!right) return;
 
         const otherTeams = currentTeams.filter(t => t.team_index !== myIdx);
-        // 그리드 컬럼 수: 상대 1팀=1, 3팀=1(세로), 5팀=2, 7팀=2
-        let gridCols = '1fr';
-        if (otherTeams.length >= 5) gridCols = '1fr 1fr';
-        else if (otherTeams.length >= 3) gridCols = '1fr';
+        // 단계 O-3 (fix #1): 오른쪽 영역은 좁음 → 항상 1열로 (스크롤 가능)
+        // 화면이 충분히 넓으면 2열로 자동 (CSS media query는 따로 안 적용, 인라인으로 처리)
+        const gridCols = '1fr';
 
         right.innerHTML = `
             <div class="card" style="padding:10px;">
-                <div class="section-title" style="text-align:center; margin-bottom:8px;">
+                <div class="section-title" style="text-align:center; margin-bottom:8px; font-size:13px;">
                     🤝 상대 팀 (${otherTeams.length}팀)
                 </div>
                 <div id="otherTeamsGridContainer" style="display:grid; grid-template-columns:${gridCols}; gap:6px;"></div>
