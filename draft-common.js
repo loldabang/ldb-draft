@@ -233,9 +233,15 @@ function routeByStatus(room, rpsGames) {
         return { page: 'rps', extras: { round: 1 } };
     }
 
-    // 단계 M: N팀 — admin이 픽 순서를 결정하는 중. 양 팀장은 대기 화면(현재 picker 표시).
+    // 단계 O-1: N팀 대기 상태들 — main.html 자체에서 대기 화면 표시 (라우팅 X)
     if (status === 'pick_order_pending') {
-        return { page: 'draft' };  // draft 페이지가 "픽 순서 결정 대기" 화면도 처리
+        return { page: 'waiting', extras: { reason: 'pick_order' } };
+    }
+    if (status === 'matchup_pending') {
+        return { page: 'waiting', extras: { reason: 'matchup' } };
+    }
+    if (status === 'side_rps') {
+        return { page: 'waiting', extras: { reason: 'side_rps' } };
     }
 
     if (status === 'drafting') {
@@ -250,23 +256,13 @@ function routeByStatus(room, rpsGames) {
         return { page: 'rps', extras: { round: 2 } };
     }
 
-    // 단계 M: N팀 — 8픽 끝나고 admin이 매칭 결정 중
-    if (status === 'matchup_pending') {
-        return { page: 'draft' };  // draft 페이지에 "매칭 결정 대기" 표시
-    }
-
-    // 단계 M: N팀 — 매칭 결정 끝, 매칭별 진영 가위바위보 진행 중
-    if (status === 'side_rps') {
-        return { page: 'draft' };  // draft 페이지에 "진영 가위바위보 대기" 표시 (단계 N/O에서 별도 페이지)
-    }
-
     if (status === 'done') {
         return { page: 'done' };
     }
 
     // 알 수 없는 상태
     console.warn('[routeByStatus] unknown status:', status);
-    return { page: 'rps', extras: { round: 1 } };
+    return { page: 'waiting', extras: { reason: 'unknown', status } };
 }
 
 // 페이지 이름 → 실제 goToXxx 호출
@@ -277,7 +273,73 @@ function goToPageByName(pageName, extras) {
     if (pageName === 'draft') return goToDraft();
     if (pageName === 'side') return goToSide();
     if (pageName === 'done') return goToDone();
+    // 단계 O-1: 'waiting' — 현재 페이지에서 대기 화면 표시 (다른 페이지로 이동 X)
+    if (pageName === 'waiting') return showWaitingScreen(extras);
     goToMain();
+}
+
+// 단계 O-1: N팀 대기 화면 표시 (main.html에서 호출)
+function showWaitingScreen(extras) {
+    const reason = (extras && extras.reason) || 'unknown';
+    const messages = {
+        pick_order: {
+            title: '⏳ 픽 순서 결정 대기 중',
+            body: '관리자가 픽 순서를 결정하고 있습니다.<br>잠시만 기다려주세요.'
+        },
+        matchup: {
+            title: '⏳ 진영 매칭 결정 대기 중',
+            body: '8픽이 완료되었습니다.<br>관리자가 진영 매칭을 결정하고 있습니다.'
+        },
+        side_rps: {
+            title: '🥊 진영 가위바위보 대기 중',
+            body: '진영 결정 가위바위보가 진행 중입니다.<br>본인의 매칭 차례가 오면 자동으로 화면이 바뀝니다.'
+        },
+        unknown: {
+            title: '⏳ 대기 중',
+            body: '잠시만 기다려주세요...'
+        }
+    };
+    const msg = messages[reason] || messages.unknown;
+    document.body.innerHTML = `
+        <div class="page-wrap" style="display:flex; align-items:center; justify-content:center; min-height:80vh;">
+            <div class="card" style="text-align:center; padding:40px 24px; max-width:420px;">
+                <div style="font-size:54px; margin-bottom:8px;">⏳</div>
+                <h1 style="border-bottom:none; padding-bottom:0; font-size:18px; margin-bottom:8px;">${msg.title}</h1>
+                <p style="font-size:13px; color:var(--text-muted); line-height:1.5;">${msg.body}</p>
+                <div class="spinner" style="margin: 20px auto 0;"></div>
+            </div>
+        </div>
+    `;
+    // 실시간 구독으로 status 변경 감지 → 변경되면 main 다시 로드
+    _subscribeForStatusChange();
+}
+
+// 단계 O-1: 대기 화면에서 status 변경 감지
+function _subscribeForStatusChange() {
+    const client = initSupabase();
+    if (!client) return;
+    const channel = client.channel('waiting_' + ROOM_CODE)
+        .on('postgres_changes', {
+            event: '*', schema: 'public', table: 'rooms',
+            filter: `room_code=eq.${ROOM_CODE}`
+        }, (payload) => {
+            if (payload.eventType === 'DELETE') {
+                document.body.innerHTML = `
+                    <div class="page-wrap" style="display:flex; align-items:center; justify-content:center; min-height:80vh;">
+                        <div class="card" style="text-align:center; padding:40px 24px;">
+                            <div style="font-size:54px; margin-bottom:8px;">🎉</div>
+                            <h1 style="border-bottom:none; padding-bottom:0;">수고하셨습니다!</h1>
+                            <p style="font-size:13px; color:var(--text-muted);">이 창은 닫으셔도 됩니다.</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            // status가 바뀌었으면 main 재로딩
+            console.log('[waiting] status changed:', payload.new && payload.new.status);
+            goToMain();
+        })
+        .subscribe();
 }
 
 // ============================================================================
