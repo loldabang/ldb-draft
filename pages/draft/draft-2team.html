@@ -283,20 +283,85 @@
     <script>
     // ========================================================================
     // draft.html 로직
-    // 1-2-2-2-1 순서로 8픽 진행
     // ========================================================================
-
-    // 픽 순서: A=먼저픽, B=나중픽
-    // 픽 번호:  1=A, 2=B, 3=B, 4=A, 5=A, 6=B, 7=B, 8=A
-    const PICK_ORDER = ['A', 'B', 'B', 'A', 'A', 'B', 'B', 'A'];
-    const TOTAL_PICKS = 8;
+    // 단계 O-2: N팀 (2/4/6/8) 호환 픽 로직
+    //   - 2팀: 1-2-2-2-1 (8픽) - 기존 흐름
+    //   - 4팀+: 스네이크 1-2-3-..-N-N-...-2-1 반복 (4 라운드, N팀*4픽)
+    // ========================================================================
 
     let currentRoom = null;
     let currentDrafts = [];
+    let currentTeams = [];   // N팀: teams 테이블 캐시
     let isProcessing = false;
 
     // 단계 E 변경: 후보 멤버 목록 (배열, 1명 또는 2명. 본인 연속 픽 수에 따라)
     let pendingPicks = [];
+
+    // 단계 O-2: 동적 픽 시퀀스 계산
+    // 2팀: ['A','B','B','A','A','B','B','A'] (A=먼저픽, B=나중픽)
+    // N팀: [1,2,3,...,N, N,...,3,2,1, 1,2,3,...,N, N,...,3,2,1] (team_index 배열)
+    function _buildPickSequence() {
+        const teamCount = currentRoom.team_count || 2;
+        if (teamCount === 2) {
+            // 2팀 — 기존 1-2-2-2-1 패턴 + pick_order 매핑
+            const pickerA = currentRoom.pick_order;
+            const pickerB = pickerA === 'leader1' ? 'leader2' : 'leader1';
+            return ['A', 'B', 'B', 'A', 'A', 'B', 'B', 'A'].map(s => s === 'A' ? pickerA : pickerB);
+        }
+        // N팀 스네이크: 4 라운드, 각 라운드 N픽
+        // 1라운드: pos 1,2,...,N
+        // 2라운드: pos N,N-1,...,1
+        // 3라운드: pos 1,2,...,N
+        // 4라운드: pos N,N-1,...,1
+        // pos → team_index (teams 테이블의 pick_position 매핑)
+        const posToTeamIdx = {};
+        currentTeams.forEach(t => {
+            if (t.pick_position) posToTeamIdx[t.pick_position] = t.team_index;
+        });
+        const seq = [];
+        for (let round = 1; round <= 4; round++) {
+            const ascending = (round % 2 === 1);
+            for (let p = 1; p <= teamCount; p++) {
+                const pos = ascending ? p : (teamCount - p + 1);
+                seq.push(posToTeamIdx[pos] || null);
+            }
+        }
+        return seq;
+    }
+
+    function _getTotalPicks() {
+        return (currentRoom.team_count || 2) * 4;
+    }
+
+    function _getMyPickerToken() {
+        // 2팀: ROLE ('leader1'/'leader2'). N팀: team_index (1..8)
+        const teamCount = currentRoom.team_count || 2;
+        if (teamCount === 2) return ROLE;
+        return getMyTeamIndex();
+    }
+
+    function _isMyTurnNow() {
+        const pickCount = currentDrafts.length;
+        if (pickCount >= _getTotalPicks()) return false;
+        const seq = _buildPickSequence();
+        const expected = seq[pickCount];
+        return expected === _getMyPickerToken();
+    }
+
+    // 본인 차례에서 연속으로 픽할 수 있는 수
+    function _getMyAllowedPicks() {
+        const pickCount = currentDrafts.length;
+        const total = _getTotalPicks();
+        if (pickCount >= total) return 0;
+        const seq = _buildPickSequence();
+        const myToken = _getMyPickerToken();
+        let count = 0;
+        for (let i = pickCount; i < total; i++) {
+            if (seq[i] !== myToken) break;
+            count++;
+        }
+        return count;
+    }
 
     (async function init() {
         const v = validateUrlParams();
@@ -330,26 +395,53 @@
         const claimed = await ensureLeaderClaim(currentRoom);
         if (!claimed) return;  // 거부 시 ensureLeaderClaim이 화면 교체함
 
-        // 상태 검증
+        // 상태 검증 — drafting이 아니면 main으로 (라우팅이 알아서 처리)
         if (currentRoom.status !== 'drafting') {
-            // 다른 단계라면 main.html로
             goToMain();
             return;
         }
 
-        // 픽 순서가 정해져 있는지
-        if (!currentRoom.pick_order) {
-            goToMain();
-            return;
+        // 단계 O-2: N팀에선 currentRoom.pick_order가 없음. 대신 teams.pick_position 사용.
+        const teamCount = currentRoom.team_count || 2;
+        if (teamCount === 2) {
+            // 2팀: 기존대로 pick_order 확인
+            if (!currentRoom.pick_order) {
+                goToMain();
+                return;
+            }
+        } else {
+            // N팀: teams 테이블 로드 (pick_position 확인)
+            try {
+                const _c = initSupabase();
+                const { data: teams } = await _c
+                    .from('teams')
+                    .select('*')
+                    .eq('room_code', currentRoom.room_code)
+                    .order('team_index');
+                currentTeams = teams || [];
+                setTeamsCache(currentTeams);
+                // 모든 팀의 pick_position이 정해졌는지
+                const allHavePos = currentTeams.length === teamCount
+                    && currentTeams.every(t => t.pick_position);
+                if (!allHavePos) {
+                    goToMain();
+                    return;
+                }
+            } catch (e) {
+                showFatalError('팀 정보 로드 실패: ' + (e && e.message ? e.message : e));
+                return;
+            }
         }
 
         // 드래프트 픽 로드
         currentDrafts = await loadDrafts();
 
         // 헤더
+        const totalPicks = teamCount * 4;
+        const seqLabel = teamCount === 2 ? '1-2-2-2-1' : (teamCount + '팀 스네이크');
         renderHeader(currentRoom,
             '⚔️ STEP 2: 드래프트 진행',
-            '1-2-2-2-1 순서로 멤버를 픽합니다.'
+            `${seqLabel} 순서로 ${totalPicks}픽 진행합니다.`
         );
 
         // 실시간 구독
@@ -365,6 +457,11 @@
                     goToRps(2);
                 } else if (currentRoom.status === 'done') {
                     goToDone();
+                } else if (currentRoom.status === 'matchup_pending') {
+                    // 단계 O-2: N팀 — 모든 픽 끝나면 매칭 결정 대기 화면으로
+                    goToMain();
+                } else if (currentRoom.status === 'side_rps') {
+                    goToMain();
                 }
             },
             onDraft: async () => {
@@ -429,9 +526,12 @@
 
         try {
             const client = initSupabase();
+            // 단계 O-2: team_count에 따라 RPC 분기
+            const rpcName = (currentRoom.team_count && currentRoom.team_count > 2)
+                ? 'make_team_draft_pick' : 'make_draft_pick';
             for (let i = 0; i < toSubmit.length; i++) {
                 const m = toSubmit[i];
-                const { data, error } = await client.rpc('make_draft_pick', {
+                const { data, error } = await client.rpc(rpcName, {
                     p_room_code: ROOM_CODE,
                     p_leader_token: TOKEN,
                     p_member_name: m
@@ -469,30 +569,7 @@
         currentDrafts.forEach(d => { map[d.picked_member] = d.picker; });
         return map;
     }
-    function _isMyTurnNow() {
-        const pickCount = currentDrafts.length;
-        if (pickCount >= TOTAL_PICKS) return false;
-        const pickerA = currentRoom.pick_order;
-        const pickerB = pickerA === 'leader1' ? 'leader2' : 'leader1';
-        const slot = PICK_ORDER[pickCount];
-        const expected = slot === 'A' ? pickerA : pickerB;
-        return expected === ROLE;
-    }
-    // 본인 차례에서 연속으로 픽할 수 있는 수 (1-2-2-2-1 패턴 기반)
-    function _getMyAllowedPicks() {
-        const pickCount = currentDrafts.length;
-        if (pickCount >= TOTAL_PICKS) return 0;
-        const pickerA = currentRoom.pick_order;
-        const pickerB = pickerA === 'leader1' ? 'leader2' : 'leader1';
-        let count = 0;
-        for (let i = pickCount; i < TOTAL_PICKS; i++) {
-            const slot = PICK_ORDER[i];
-            const expected = slot === 'A' ? pickerA : pickerB;
-            if (expected !== ROLE) break;
-            count++;
-        }
-        return count;
-    }
+    // _isMyTurnNow, _getMyAllowedPicks 는 위에서 정의됨 (단계 O-2 N팀 호환)
 
     // ========================================================================
     // 렌더링
@@ -500,19 +577,16 @@
     function renderDraft() {
         const pickCount = currentDrafts.length;
         const nextPickNumber = pickCount + 1;
+        const totalPicks = _getTotalPicks();
+        const seq = _buildPickSequence();
 
-        // 픽 순서 (A=먼저픽 = currentRoom.pick_order)
-        const pickerA = currentRoom.pick_order; // 'leader1' or 'leader2'
-        const pickerB = pickerA === 'leader1' ? 'leader2' : 'leader1';
-
-        // 다음 픽 차례
+        // 다음 픽 차례 (token: 2팀='leader1'/'leader2', N팀=team_index)
         let expectedPicker = null;
-        if (pickCount < TOTAL_PICKS) {
-            const slot = PICK_ORDER[pickCount];
-            expectedPicker = slot === 'A' ? pickerA : pickerB;
+        if (pickCount < totalPicks) {
+            expectedPicker = seq[pickCount];
         }
-        const isMyTurn = expectedPicker === ROLE;
-        const isDone = pickCount >= TOTAL_PICKS;
+        const isMyTurn = (expectedPicker === _getMyPickerToken());
+        const isDone = pickCount >= totalPicks;
 
         // 단계 E: pendingPicks 중 invalid한 항목 자동 제거
         if (pendingPicks.length > 0) {
@@ -532,15 +606,15 @@
             currentText.innerText = '✅ 드래프트 완료! 다음 단계로 이동 중...';
         } else if (isMyTurn) {
             statusBox.className = 'draft-status my-turn';
-            currentText.innerText = `🔥 내 차례! (${nextPickNumber}픽 / 총 ${TOTAL_PICKS}픽)`;
+            currentText.innerText = `🔥 내 차례! (${nextPickNumber}픽 / 총 ${totalPicks}픽)`;
         } else {
             statusBox.className = 'draft-status';
-            const otherName = getRoleDisplay(expectedPicker, currentRoom);
-            currentText.innerText = `⏳ ${otherName}의 차례 (${nextPickNumber}픽 / 총 ${TOTAL_PICKS}픽)`;
+            const otherName = _getDisplayNameForToken(expectedPicker);
+            currentText.innerText = `⏳ ${otherName}의 차례 (${nextPickNumber}픽 / 총 ${totalPicks}픽)`;
         }
 
         // 진행 슬롯
-        renderProgress(pickCount, pickerA, pickerB);
+        renderProgress(pickCount, seq);
 
         // 멤버 그리드
         renderMembers(isMyTurn);
@@ -550,6 +624,20 @@
 
         // 팀 구성
         renderTeams();
+    }
+
+    // 단계 O-2: token에 따른 표시 이름
+    function _getDisplayNameForToken(token) {
+        if (!token) return '?';
+        // 2팀 ('leader1'/'leader2')
+        if (token === 'leader1') return currentRoom.leader1_name || '팀장 1';
+        if (token === 'leader2') return currentRoom.leader2_name || '팀장 2';
+        // N팀 (team_index)
+        if (typeof token === 'number') {
+            const team = currentTeams.find(t => t.team_index === token);
+            return team ? (team.leader_name || ('팀장 ' + token)) : ('팀장 ' + token);
+        }
+        return String(token);
     }
 
     // 단계 E: 확정 영역 갱신 (다중 픽 지원)
@@ -578,23 +666,30 @@
         }
     }
 
-    function renderProgress(pickCount, pickerA, pickerB) {
+    function renderProgress(pickCount, seq) {
         const html = [];
-        for (let i = 0; i < TOTAL_PICKS; i++) {
-            const slot = PICK_ORDER[i];
-            const owner = slot === 'A' ? pickerA : pickerB;
+        const totalPicks = _getTotalPicks();
+        for (let i = 0; i < totalPicks; i++) {
+            const owner = seq[i]; // 2팀: 'leader1'/'leader2', N팀: team_index (1..8)
             const done = i < pickCount;
             const current = i === pickCount;
 
             let cls = 'pick-slot';
+            // 단계 O-2: 2팀은 기존 클래스 ('leader1'/'leader2'), N팀은 'team-N'
+            const ownerClass = (typeof owner === 'number') ? ('team-' + owner) : owner;
             if (done) {
-                cls += ` done ${owner}`;
+                cls += ` done ${ownerClass}`;
             } else if (current) {
                 cls += ' current';
             }
 
-            const labelText = slot === 'A' ? '1팀' : '2팀'; // 시각적 안내
-            const actualTeam = owner === 'leader1' ? '1팀' : '2팀';
+            // 라벨: 어느 팀이 픽하는지 표시
+            let actualTeam;
+            if (typeof owner === 'number') {
+                actualTeam = owner + '팀';
+            } else {
+                actualTeam = owner === 'leader1' ? '1팀' : '2팀';
+            }
 
             html.push(`
                 <div class="pick-slot-wrap">
@@ -610,10 +705,22 @@
         const members = currentRoom.members || [];
         const pickedMap = {};
         currentDrafts.forEach(d => { pickedMap[d.picked_member] = d.picker; });
+        // 단계 O-2: picker_team_index 매핑도 함께
+        const pickedTeamMap = {};
+        currentDrafts.forEach(d => { pickedTeamMap[d.picked_member] = d.picker_team_index; });
 
-        const leader1Name = currentRoom.leader1_name;
-        const leader2Name = currentRoom.leader2_name;
+        const teamCount = currentRoom.team_count || 2;
+        const isNTeam = teamCount > 2;
         const myName = getMyDisplayName(currentRoom);
+
+        // 단계 O-2: 팀장 이름 집합 (2팀+N팀 모두 호환)
+        const leaderNameToTeamIdx = {};
+        if (isNTeam) {
+            currentTeams.forEach(t => { leaderNameToTeamIdx[t.leader_name] = t.team_index; });
+        } else {
+            leaderNameToTeamIdx[currentRoom.leader1_name] = 1;
+            leaderNameToTeamIdx[currentRoom.leader2_name] = 2;
+        }
 
         const grid = $('membersGrid');
         grid.innerHTML = '';
@@ -627,9 +734,11 @@
             btn.className = 'member-btn';
             btn.type = 'button';
 
-            const isLeader = memberName === leader1Name || memberName === leader2Name;
+            const leaderTeamIdx = leaderNameToTeamIdx[memberName]; // undefined면 일반 멤버
+            const isLeader = !!leaderTeamIdx;
             const isMine = memberName === myName;
             const pickedBy = pickedMap[memberName];
+            const pickedTeamIdx = pickedTeamMap[memberName];
 
             // 점수 뱃지 HTML
             const scoreHtml = (memberScore !== null && memberScore !== undefined && memberScore !== '')
@@ -638,12 +747,19 @@
             if (isLeader) {
                 btn.classList.add('is-leader');
                 if (isMine) btn.classList.add('is-mine');
-                const teamLabel = memberName === leader1Name ? '1팀 팀장' : '2팀 팀장';
+                const teamLabel = `${leaderTeamIdx}팀 팀장`;
                 btn.innerHTML = `<span class="member-name-wrap">👑 ${escapeHtml(memberName)}${scoreHtml}</span><span class="leader-tag">${teamLabel}</span>`;
                 btn.disabled = true;
             } else if (pickedBy) {
-                btn.classList.add(`picked-${pickedBy}`);
-                const teamLabel = pickedBy === 'leader1' ? '1팀' : '2팀';
+                // 단계 O-2: N팀이면 picker_team_index 사용
+                const ownerClass = (isNTeam && pickedTeamIdx) ? `team-${pickedTeamIdx}` : pickedBy;
+                btn.classList.add(`picked-${ownerClass}`);
+                let teamLabel;
+                if (isNTeam && pickedTeamIdx) {
+                    teamLabel = `${pickedTeamIdx}팀`;
+                } else {
+                    teamLabel = pickedBy === 'leader1' ? '1팀' : '2팀';
+                }
                 btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span><span class="pick-tag">→ ${teamLabel}</span>`;
                 btn.disabled = true;
             } else if (isMyTurn) {
@@ -666,25 +782,37 @@
     }
 
     // 단계 E: 새 레이아웃 — 내 팀 (위) / 상대 팀 (아래)
+    // 단계 O-2: N팀이면 split-grid-right를 N팀 그리드로 완전 교체
     function renderTeams() {
+        const teamCount = currentRoom.team_count || 2;
+        if (teamCount === 2) {
+            renderTeams2();
+        } else {
+            renderTeamsN();
+        }
+    }
+
+    function renderTeams2() {
+        // 기존 2팀 흐름
         // ROLE 기준으로 내/상대 결정
         const myTeamLabel = ROLE === 'leader1' ? '1팀' : '2팀';
         const otherTeamLabel = ROLE === 'leader1' ? '2팀' : '1팀';
         const myLeaderName = ROLE === 'leader1' ? currentRoom.leader1_name : currentRoom.leader2_name;
         const otherLeaderName = ROLE === 'leader1' ? currentRoom.leader2_name : currentRoom.leader1_name;
-        // 단계 I: 팀장 점수
         const myLeaderScore = ROLE === 'leader1' ? currentRoom.leader1_score : currentRoom.leader2_score;
         const otherLeaderScore = ROLE === 'leader1' ? currentRoom.leader2_score : currentRoom.leader1_score;
-        const myRole = ROLE; // 'leader1' or 'leader2'
+        const myRole = ROLE;
         const otherRole = ROLE === 'leader1' ? 'leader2' : 'leader1';
 
         const myPicks = currentDrafts.filter(d => d.picker === myRole).map(d => d.picked_member);
         const otherPicks = currentDrafts.filter(d => d.picker === otherRole).map(d => d.picked_member);
 
+        // 2팀 컨테이너 보장 (N팀에서 다시 2팀으로 돌아가는 경우는 없지만 안전)
+        _ensure2TeamHtml();
+
         $('myTeamHeader').innerText = `🏆 내 팀 (${myTeamLabel}) — ${1 + myPicks.length}명`;
         $('otherTeamHeader').innerText = `🤝 상대 팀 (${otherTeamLabel}) — ${1 + otherPicks.length}명`;
 
-        // 단계 I: 멤버 이름 → 점수 lookup 맵
         const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
         const scoreMap = {};
         members.forEach(m => {
@@ -709,6 +837,85 @@
 
         $('myTeamBox').innerHTML = buildBox(myLeaderName, myLeaderScore, myPicks);
         $('otherTeamBox').innerHTML = buildBox(otherLeaderName, otherLeaderScore, otherPicks);
+    }
+
+    function _ensure2TeamHtml() {
+        // split-grid-right가 N팀 그리드로 바뀌어있으면 2팀 형태로 복원
+        const right = document.querySelector('.split-grid-right');
+        if (!right) return;
+        if (!$('myTeamBox') || !$('otherTeamBox')) {
+            right.innerHTML = `
+                <div class="card">
+                    <div class="section-title" id="myTeamHeader">🏆 내 팀</div>
+                    <div id="myTeamBox"></div>
+                </div>
+                <div class="card">
+                    <div class="section-title" id="otherTeamHeader">🤝 상대 팀</div>
+                    <div id="otherTeamBox"></div>
+                </div>
+            `;
+        }
+    }
+
+    function renderTeamsN() {
+        // N팀 그리드 — 내 팀은 강조, 다른 팀들은 일반
+        const right = document.querySelector('.split-grid-right');
+        if (!right) return;
+        const teamCount = currentRoom.team_count;
+        const myIdx = getMyTeamIndex();
+
+        // members 점수 맵
+        const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
+        const scoreMap = {};
+        members.forEach(m => {
+            if (m && typeof m === 'object' && m.name) scoreMap[m.name] = m.score;
+        });
+        // 팀장도 점수 맵에 추가
+        currentTeams.forEach(t => { if (t.leader_name) scoreMap[t.leader_name] = t.leader_score; });
+
+        // 그리드 컨테이너로 교체
+        let gridCols = 'repeat(2, 1fr)';
+        if (teamCount === 6) gridCols = 'repeat(3, 1fr)';
+        else if (teamCount === 8) gridCols = 'repeat(4, 1fr)';
+
+        right.innerHTML = `<div class="card" style="padding:10px;">
+            <div class="section-title" style="text-align:center; margin-bottom:8px;">🏆 ${teamCount}팀 진행 상황</div>
+            <div id="nTeamsBoxContainer" style="display:grid; grid-template-columns:${gridCols}; gap:8px;"></div>
+        </div>`;
+
+        const container = $('nTeamsBoxContainer');
+        const scoreBadge = (sc) => (sc !== null && sc !== undefined && sc !== '')
+            ? `<span class="member-score-badge" style="font-size:10px; padding:1px 6px;">${sc}</span>` : '';
+
+        currentTeams.forEach(t => {
+            const isMine = (t.team_index === myIdx);
+            const picks = currentDrafts.filter(d => d.picker_team_index === t.team_index)
+                                       .sort((a, b) => a.pick_number - b.pick_number);
+            const total = (t.leader_score || 0) + picks.reduce((s, p) => s + (Number(scoreMap[p.picked_member]) || 0), 0);
+
+            let rowsHtml = `<div class="team-vbox-row leader" style="font-size:11px; padding:5px 7px;">
+                <span>👑 ${escapeHtml(t.leader_name || '?')}</span>${scoreBadge(t.leader_score)}
+            </div>`;
+            for (let i = 0; i < 4; i++) {
+                if (i < picks.length) {
+                    rowsHtml += `<div class="team-vbox-row" style="font-size:11px; padding:5px 7px;">
+                        <span>${escapeHtml(picks[i].picked_member)}</span>${scoreBadge(scoreMap[picks[i].picked_member])}
+                    </div>`;
+                } else {
+                    rowsHtml += `<div class="team-vbox-row empty" style="font-size:11px; padding:5px 7px;">(픽 대기)</div>`;
+                }
+            }
+            const myBadge = isMine ? ' ⭐' : '';
+            const myStyle = isMine
+                ? 'border:2px solid #fbbf24; background:linear-gradient(135deg, #fffbeb, #fef3c7); box-shadow:0 0 0 3px rgba(251, 191, 36, 0.25);'
+                : 'border:1px solid #e5e7eb; background:#fff;';
+            const box = document.createElement('div');
+            box.style.cssText = `${myStyle} border-radius:10px; padding:8px;`;
+            box.innerHTML = `<div style="font-size:12px; font-weight:800; text-align:center; margin-bottom:5px; padding-bottom:4px; border-bottom:1px dashed rgba(0,0,0,0.1);">
+                ${t.team_index}팀${myBadge} <span style="font-size:10px; color:#6b7280; font-weight:700;">(${total}점, ${1 + picks.length}명)</span>
+            </div>${rowsHtml}`;
+            container.appendChild(box);
+        });
     }
     </script>
 </body>
