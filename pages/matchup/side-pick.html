@@ -265,16 +265,31 @@
                 event: '*', schema: 'public', table: 'rps_games',
                 filter: `room_code=eq.${ROOM_CODE}`
             }, async (payload) => {
-                // 단계 O-3 (fix): 견고하게 — payload.new가 본인 매칭 RPS면 처리
                 if (!_myMatchup) return;
                 const incoming = payload.new || payload.old;
-                // payload에 matchup_id가 본인 거이거나, 본인 매칭의 rps_id이거나
                 const relevant = incoming && (
                     incoming.matchup_id === _myMatchup.id ||
                     (_myMatchupRps && incoming.id === _myMatchupRps.id)
                 );
                 if (!relevant) return;
-                // 최신 데이터 다시 fetch — payload는 stale일 수 있음
+
+                // 단계 O-3 (fix): 비김 즉시 감지 — re-fetch 전에 payload에서 직접 확인
+                //   (SQL이 'draw' set 후 즉시 reset해서 fetch 시점엔 NULL일 수 있음)
+                if (payload.new) {
+                    const pNew = payload.new;
+                    let isDraw = (pNew.winner === 'draw');
+                    if (!isDraw && pNew.leader1_choice && pNew.leader2_choice
+                        && pNew.leader1_choice === pNew.leader2_choice
+                        && !pNew.winner) {
+                        isDraw = true;
+                    }
+                    if (isDraw) {
+                        const drawKey = pNew.id + '-' + (pNew.leader1_choice || '') + '-' + (pNew.leader2_choice || '') + '-' + (pNew.winner || '');
+                        _showDrawEffect(drawKey);
+                    }
+                }
+
+                // 최신 데이터 re-fetch (UI 갱신용)
                 try {
                     const { data: rps } = await client.from('rps_games')
                         .select('*').eq('matchup_id', _myMatchup.id).maybeSingle();
@@ -333,36 +348,23 @@
         }
     }
 
-    // 단계 O-3 (fix #3): N팀 비김 효과 — 본인 매칭 카드 위에 인라인 표시
-    //   (전체 오버레이가 아닌, 매칭 카드 영역에만 표시)
+    // 단계 O-3 (fix): N팀 비김 효과 — 팀장 화면 전체 오버레이
     let _lastDrawShown = -1;
     function _showDrawEffect(rpsId) {
         if (_lastDrawShown === rpsId) return;
         _lastDrawShown = rpsId;
-        // 4초 후 lock 해제
+        // 4초 후 lock 해제 (두 번째 비김도 표시 가능)
         setTimeout(() => {
             if (_lastDrawShown === rpsId) _lastDrawShown = -1;
         }, 4000);
 
-        // 매칭 카드 영역 안에 인라인 오버레이 띄우기
-        const view = document.getElementById('sideView');
-        if (!view) return;
-
-        // 기존 인라인 오버레이 있으면 제거
-        const oldOverlay = view.querySelector('.matchup-draw-overlay');
-        if (oldOverlay) oldOverlay.remove();
-
-        // view를 relative로 만들어서 absolute 자식 받기
-        view.style.position = view.style.position || 'relative';
-
         const overlay = document.createElement('div');
-        overlay.className = 'matchup-draw-overlay';
-        overlay.style.cssText = 'position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(254, 243, 199, 0.92); border-radius:14px; z-index:50; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px); animation:drawFadeIn 0.3s ease-out; pointer-events:none;';
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:99998; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); animation:drawFadeIn 0.3s ease-out;';
         overlay.innerHTML = `
-            <div style="background:linear-gradient(135deg, #fef3c7, #fbbf24); border-radius:14px; padding:20px 30px; text-align:center; box-shadow:0 12px 36px rgba(245,158,11,0.5); animation:drawPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); border:3px solid #f59e0b;">
-                <div style="font-size:48px; margin-bottom:4px; animation:drawShake 0.6s ease-out;">🤝</div>
-                <div style="font-size:18px; font-weight:900; color:#92400e; margin-bottom:2px;">비김!</div>
-                <div style="font-size:11px; color:#78350f; font-weight:700;">다시 가위바위보를 진행합니다</div>
+            <div style="background:linear-gradient(135deg, #fef3c7, #fbbf24); border-radius:18px; padding:30px 40px; text-align:center; box-shadow:0 20px 60px rgba(245,158,11,0.5); animation:drawPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); border:3px solid #f59e0b;">
+                <div style="font-size:64px; margin-bottom:6px; animation:drawShake 0.6s ease-out;">🤝</div>
+                <div style="font-size:22px; font-weight:900; color:#92400e; margin-bottom:4px;">비김!</div>
+                <div style="font-size:13px; color:#78350f; font-weight:700;">다시 가위바위보를 진행합니다</div>
             </div>
         `;
         if (!document.getElementById('drawEffectStyles')) {
@@ -376,7 +378,7 @@
             `;
             document.head.appendChild(st);
         }
-        view.appendChild(overlay);
+        document.body.appendChild(overlay);
         setTimeout(() => {
             overlay.style.animation = 'drawFadeOut 0.4s ease-in forwards';
             setTimeout(() => { try { overlay.remove(); } catch(e){} }, 400);
@@ -651,7 +653,13 @@
             } else if (data && data[0] && !data[0].success) {
                 showToast(data[0].message || '실패');
             } else {
-                _pendingRpsChoice = null;  // 단계 O-3 (fix #4): 확정 성공 → 초기화
+                _pendingRpsChoice = null;  // 확정 성공 → 초기화
+                // 단계 O-3 (fix): RPC 응답으로 비김 즉시 감지 (SQL이 즉시 reset해서 realtime 너무 빠를 수 있음)
+                const respWinner = data && data[0] && data[0].winner;
+                if (respWinner === 'draw') {
+                    const drawKey = 'rpcDraw_' + (_myMatchup ? _myMatchup.id : 'm') + '_' + choice + '_' + Date.now();
+                    _showDrawEffect(drawKey);
+                }
             }
         } catch (e) {
             console.error(e);
