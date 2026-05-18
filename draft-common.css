@@ -388,8 +388,8 @@ body.nteam-mode-large .page-wrap {
     max-width: min(1900px, 98vw);
 }
 body.nteam-mode-large .draft-3col-grid {
-    /* 단계 P-3 (fix): 8팀 — 내 팀 확실히 + 픽 영역 넓게 + 상대 팀 약간 컴팩트 */
-    grid-template-columns: 1.2fr 2fr 2.3fr;
+    /* 단계 P-3 (fix): 8팀 — 내 팀 더 넓게 + 픽 영역 넓게 + 상대 팀 컴팩트 */
+    grid-template-columns: 1.7fr 2fr 2.3fr;
     gap: 12px;
 }
 
