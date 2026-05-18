@@ -811,36 +811,73 @@
             return;
         }
 
+        const _LINE_LABELS = ['탑', '정글', '미드', '원딜', '서폿'];
+
+        // 단계 P-3: 라인고정 모드면 라인별 그룹화
+        const isLineFixed = _isLineFixedMode();
+        let groupedRender;
+        if (isLineFixed) {
+            const byLine = [[], [], [], [], []];
+            visibleMembers.forEach(m => {
+                const r = (m && m.role !== undefined && m.role !== null) ? m.role : -1;
+                if (r >= 0 && r <= 4) byLine[r].push(m);
+            });
+            grid.style.display = 'block'; // grid 해제 — 라인 헤더 + 멤버 박스 흐름
+            groupedRender = true;
+            for (let i = 0; i < 5; i++) {
+                if (byLine[i].length === 0) continue;
+                // 라인 헤더
+                const header = document.createElement('div');
+                header.style.cssText = 'font-weight:800; font-size:12px; padding:5px 10px; background:linear-gradient(135deg, #4338ca, #6366f1); color:#fff; border-radius:6px; margin: 10px 0 6px; display:inline-block;';
+                header.innerText = _LINE_LABELS[i];
+                grid.appendChild(header);
+                // 멤버 박스들 (라인 내)
+                const lineGrid = document.createElement('div');
+                lineGrid.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
+                byLine[i].forEach(rawM => {
+                    const btn = _buildMemberBtn(rawM, isMyTurn);
+                    lineGrid.appendChild(btn);
+                });
+                grid.appendChild(lineGrid);
+            }
+            return;
+        }
+
         // 단계 I: members가 객체 배열 {name, score}
         visibleMembers.forEach(rawM => {
-            const memberName = (rawM && typeof rawM === 'object') ? (rawM.name || '') : String(rawM);
-            const memberScore = (rawM && typeof rawM === 'object') ? rawM.score : null;
-
-            const btn = document.createElement('button');
-            btn.className = 'member-btn';
-            btn.type = 'button';
-
-            // 점수 뱃지 HTML
-            const scoreHtml = (memberScore !== null && memberScore !== undefined && memberScore !== '')
-                ? `<span class="member-score-badge">${memberScore}</span>` : '';
-
-            if (isMyTurn) {
-                btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
-                const orderIdx = pendingPicks.indexOf(memberName);
-                if (orderIdx !== -1) {
-                    btn.classList.add('is-selected');
-                    const badge = document.createElement('span');
-                    badge.className = 'selected-badge';
-                    badge.innerText = _getMyAllowedPicks() > 1 ? String(orderIdx + 1) : '✓';
-                    btn.appendChild(badge);
-                }
-                btn.onclick = () => onMemberSelect(memberName);
-            } else {
-                btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
-                btn.disabled = true;
-            }
+            const btn = _buildMemberBtn(rawM, isMyTurn);
             grid.appendChild(btn);
         });
+    }
+
+    // 단계 P-3: 멤버 버튼 생성 helper
+    function _buildMemberBtn(rawM, isMyTurn) {
+        const memberName = (rawM && typeof rawM === 'object') ? (rawM.name || '') : String(rawM);
+        const memberScore = (rawM && typeof rawM === 'object') ? rawM.score : null;
+
+        const btn = document.createElement('button');
+        btn.className = 'member-btn';
+        btn.type = 'button';
+
+        const scoreHtml = (memberScore !== null && memberScore !== undefined && memberScore !== '')
+            ? `<span class="member-score-badge">${memberScore}</span>` : '';
+
+        if (isMyTurn) {
+            btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
+            const orderIdx = pendingPicks.indexOf(memberName);
+            if (orderIdx !== -1) {
+                btn.classList.add('is-selected');
+                const badge = document.createElement('span');
+                badge.className = 'selected-badge';
+                badge.innerText = _getMyAllowedPicks() > 1 ? String(orderIdx + 1) : '✓';
+                btn.appendChild(badge);
+            }
+            btn.onclick = () => onMemberSelect(memberName);
+        } else {
+            btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
+            btn.disabled = true;
+        }
+        return btn;
     }
 
     // 단계 E: 새 레이아웃 — 내 팀 (위) / 상대 팀 (아래)
