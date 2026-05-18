@@ -388,9 +388,29 @@ body.nteam-mode-large .page-wrap {
     max-width: min(1900px, 98vw);
 }
 body.nteam-mode-large .draft-3col-grid {
-    /* 왼쪽 1.3fr (내 팀 컴팩트), 중앙 1fr (멤버 — 좁게), 오른쪽 3fr (상대팀 2열) */
-    grid-template-columns: 1.3fr 1fr 3fr;
-    gap: 14px;
+    /* 단계 P-3 (fix): 8팀 — 내 팀 확실히 + 픽 영역 넓게 + 상대 팀 약간 컴팩트 */
+    grid-template-columns: 1.2fr 2fr 2.3fr;
+    gap: 12px;
+}
+
+/* 단계 P-3 (fix): 8팀 모드 상대 팀 박스 컴팩트 (한눈에 8팀 보이도록) */
+body.nteam-mode-large .team-vbox.opponent {
+    padding: 6px 8px;
+    margin-bottom: 4px;
+}
+body.nteam-mode-large .team-vbox.opponent .team-vbox-title {
+    font-size: 11px;
+    margin-bottom: 4px;
+    padding-bottom: 3px;
+}
+body.nteam-mode-large .team-vbox.opponent .team-vbox-title .small {
+    font-size: 10px;
+    margin-top: 1px;
+}
+body.nteam-mode-large .team-vbox.opponent .team-vbox-row {
+    font-size: 11px;
+    padding: 3px 7px;
+    margin-bottom: 2px;
 }
 
 /* 좁은 화면 — 1단 (모바일) */
