@@ -831,8 +831,25 @@
                 const r = (m && m.role !== undefined && m.role !== null) ? m.role : -1;
                 if (r >= 0 && r <= 4) byLine[r].push(m);
             });
-            // 5 컬럼 가로 grid
-            grid.style.cssText = 'display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px;';
+
+            // 단계 P-3: 팀장 라인 찾기 (members 풀에 없는 라인 = 팀장 라인)
+            //   팀장 라인 컬럼은 멤버 없으니 좁게, 나머지 4컬럼 넓게
+            let leaderLineForGrid = -1;
+            const allMembers = members; // 위에서 정의된 currentRoom.members
+            const linesPresent = new Set();
+            allMembers.forEach(m => {
+                if (m && m.role !== undefined && m.role !== null) linesPresent.add(m.role);
+            });
+            for (let i = 0; i < 5; i++) {
+                if (!linesPresent.has(i)) { leaderLineForGrid = i; break; }
+            }
+
+            // 5 컬럼 가로 grid — 팀장 라인 컬럼은 0.4fr (좁게), 나머지 1fr
+            const colTemplate = [];
+            for (let i = 0; i < 5; i++) {
+                colTemplate.push(i === leaderLineForGrid ? '0.5fr' : '1fr');
+            }
+            grid.style.cssText = `display: grid; grid-template-columns: ${colTemplate.join(' ')}; gap: 8px;`;
             for (let i = 0; i < 5; i++) {
                 const col = document.createElement('div');
                 col.style.cssText = 'display: flex; flex-direction: column; gap: 4px; min-width: 0;';
@@ -841,10 +858,16 @@
                 header.style.cssText = 'text-align:center; font-weight:800; font-size:11px; padding:5px 4px; background:linear-gradient(135deg, #4338ca, #6366f1); color:#fff; border-radius:5px; margin-bottom:3px;';
                 header.innerText = _LINE_LABELS_DR[i];
                 col.appendChild(header);
-                if (byLine[i].length === 0) {
+                if (i === leaderLineForGrid) {
+                    // 팀장 라인 — "팀장 라인" 표시만
+                    const note = document.createElement('div');
+                    note.style.cssText = 'font-size:10px; color:#9ca3af; text-align:center; font-style:italic; padding:8px 2px;';
+                    note.innerText = '팀장 라인';
+                    col.appendChild(note);
+                } else if (byLine[i].length === 0) {
                     const empty = document.createElement('div');
                     empty.style.cssText = 'font-size:10px; color:#9ca3af; text-align:center; font-style:italic; padding:8px;';
-                    empty.innerText = '없음';
+                    empty.innerText = '완료';
                     col.appendChild(empty);
                 } else {
                     byLine[i].forEach(rawM => {
@@ -876,8 +899,11 @@
         const scoreHtml = (memberScore !== null && memberScore !== undefined && memberScore !== '')
             ? `<span class="member-score-badge">${memberScore}</span>` : '';
 
+        // 단계 P-3: 점수 뱃지를 이름 옆 (분리된 영역) — flex space-between
+        const innerHtml = `<span class="member-name-wrap">${escapeHtml(memberName)}</span>${scoreHtml}`;
+
         if (isMyTurn) {
-            btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
+            btn.innerHTML = innerHtml;
             const orderIdx = pendingPicks.indexOf(memberName);
             if (orderIdx !== -1) {
                 btn.classList.add('is-selected');
@@ -888,7 +914,7 @@
             }
             btn.onclick = () => onMemberSelect(memberName);
         } else {
-            btn.innerHTML = `<span class="member-name-wrap">${escapeHtml(memberName)}${scoreHtml}</span>`;
+            btn.innerHTML = innerHtml;
             btn.disabled = true;
         }
         return btn;
@@ -957,8 +983,8 @@
             // 라인고정 2팀 — 페이지 폭 확장 (5컬럼 멤버 그리드 보이도록)
             if (pageWrap) pageWrap.style.maxWidth = 'min(1800px, 98vw)';
             if (grid) {
-                grid.style.gridTemplateColumns = '';  // 원래 비율 (1fr 1fr 1fr)
-                grid.style.gap = '';
+                grid.style.gridTemplateColumns = '1fr 1fr 1fr';  // 균등 3컬럼
+                grid.style.gap = '12px';
             }
             // 픽 가능한 멤버 카드를 grid 바깥(아래)으로 이동 → 전체 폭 사용
             _moveMemberCardBelowGrid();
@@ -972,8 +998,9 @@
         }
 
         // 기존 2팀 흐름 — myTeamBox(왼쪽), otherTeamBox(오른쪽)
-        const myTeamLabel = ROLE === 'leader1' ? '1팀' : '2팀';
-        const otherTeamLabel = ROLE === 'leader1' ? '2팀' : '1팀';
+        const isLineFixedLabel = _isLineFixedMode();
+        const myTeamLabel = isLineFixedLabel ? '내 팀' : (ROLE === 'leader1' ? '1팀' : '2팀');
+        const otherTeamLabel = isLineFixedLabel ? '상대 팀' : (ROLE === 'leader1' ? '2팀' : '1팀');
         const myLeaderName = ROLE === 'leader1' ? currentRoom.leader1_name : currentRoom.leader2_name;
         const otherLeaderName = ROLE === 'leader1' ? currentRoom.leader2_name : currentRoom.leader1_name;
         const myLeaderScore = ROLE === 'leader1' ? currentRoom.leader1_score : currentRoom.leader2_score;
