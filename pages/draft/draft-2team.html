@@ -818,6 +818,9 @@
     }
 
     function renderTeams2() {
+        // 단계 O-3 (fix): 2팀 모드 → nteam 클래스 제거
+        document.body.classList.remove('nteam-mode', 'nteam-mode-large');
+
         // 기존 2팀 흐름 — myTeamBox(왼쪽), otherTeamBox(오른쪽)
         const myTeamLabel = ROLE === 'leader1' ? '1팀' : '2팀';
         const otherTeamLabel = ROLE === 'leader1' ? '2팀' : '1팀';
@@ -892,6 +895,10 @@
         const teamCount = currentRoom.team_count;
         const myIdx = getMyTeamIndex();
 
+        // 단계 O-3 (fix): N팀 모드 body 클래스 — 오른쪽 컬럼 넓게
+        document.body.classList.add('nteam-mode');
+        if (teamCount >= 6) document.body.classList.add('nteam-mode-large');
+
         // members 점수 맵
         const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
         const scoreMap = {};
@@ -936,12 +943,37 @@
         }
 
         // 2) 오른쪽: 상대 팀들 (split-grid-right 통째로 교체)
+        //    단계 O-3 (fix): 사용자 요청 — 6/8팀일 때 2열 (1팀/2팀, 3팀/4팀, 5팀/6팀, 7팀/8팀)
+        //    본인 팀 자리는 placeholder로 표시 ("내 팀" — 왼쪽에서 보고 있으니 빈 박스)
         const right = document.querySelector('.split-grid-right');
         if (!right) return;
-        const otherTeams = currentTeams.filter(t => t.team_index !== myIdx);
-        let html = `<div style="padding:0;">`;
-        otherTeams.forEach(t => { html += buildBoxHtml(t, true); });
-        html += `</div>`;
+
+        const tc = currentRoom.team_count || 2;
+        let html = '';
+        if (tc >= 4) {
+            // 2열 그리드 — team_index 순서 (1,2 / 3,4 / 5,6 / 7,8)
+            const sortedTeams = [...currentTeams].sort((a, b) => a.team_index - b.team_index);
+            html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">`;
+            sortedTeams.forEach(t => {
+                if (t.team_index === myIdx) {
+                    // 본인 팀 placeholder
+                    html += `<div class="team-vbox opponent" style="opacity:0.4; display:flex; align-items:center; justify-content:center; min-height:160px;">
+                        <div style="text-align:center; color:#9ca3af; font-size:13px; font-weight:700;">
+                            👈 내 팀<br><span style="font-size:10px; font-weight:500;">왼쪽에서 확인</span>
+                        </div>
+                    </div>`;
+                } else {
+                    html += buildBoxHtml(t, true);
+                }
+            });
+            html += `</div>`;
+        } else {
+            // 2팀 모드 (1열)
+            const otherTeams = currentTeams.filter(t => t.team_index !== myIdx);
+            html = `<div style="display:grid; grid-template-columns:1fr; gap:6px;">`;
+            otherTeams.forEach(t => { html += buildBoxHtml(t, true); });
+            html += `</div>`;
+        }
         right.innerHTML = html;
     }
     </script>
