@@ -242,18 +242,49 @@
                 event: '*', schema: 'public', table: 'matchups',
                 filter: `room_code=eq.${ROOM_CODE}`
             }, async (payload) => {
-                if (payload.new && payload.new.id === (_myMatchup && _myMatchup.id)) {
-                    _myMatchup = payload.new;
-                    renderNTeamSidePick();
+                // 단계 O-3 (fix): payload.new가 없거나 매칭 ID 불명일 때도 안전 처리
+                const incoming = payload.new || payload.old;
+                if (incoming && _myMatchup && incoming.id === _myMatchup.id) {
+                    // 최신 데이터 다시 fetch (UPDATE/DELETE/INSERT 모두 안전)
+                    try {
+                        const { data: m } = await client.from('matchups')
+                            .select('*').eq('id', _myMatchup.id).maybeSingle();
+                        if (m) {
+                            _myMatchup = m;
+                            renderNTeamSidePick();
+                        }
+                    } catch (e) {
+                        if (payload.new) {
+                            _myMatchup = payload.new;
+                            renderNTeamSidePick();
+                        }
+                    }
                 }
             })
             .on('postgres_changes', {
                 event: '*', schema: 'public', table: 'rps_games',
                 filter: `room_code=eq.${ROOM_CODE}`
-            }, (payload) => {
-                if (payload.new && _myMatchup && payload.new.matchup_id === _myMatchup.id) {
-                    _myMatchupRps = payload.new;
+            }, async (payload) => {
+                // 단계 O-3 (fix): 견고하게 — payload.new가 본인 매칭 RPS면 처리
+                if (!_myMatchup) return;
+                const incoming = payload.new || payload.old;
+                // payload에 matchup_id가 본인 거이거나, 본인 매칭의 rps_id이거나
+                const relevant = incoming && (
+                    incoming.matchup_id === _myMatchup.id ||
+                    (_myMatchupRps && incoming.id === _myMatchupRps.id)
+                );
+                if (!relevant) return;
+                // 최신 데이터 다시 fetch — payload는 stale일 수 있음
+                try {
+                    const { data: rps } = await client.from('rps_games')
+                        .select('*').eq('matchup_id', _myMatchup.id).maybeSingle();
+                    _myMatchupRps = rps || null;
                     renderNTeamSidePick();
+                } catch (e) {
+                    if (payload.new) {
+                        _myMatchupRps = payload.new;
+                        renderNTeamSidePick();
+                    }
                 }
             })
             .on('postgres_changes', {
