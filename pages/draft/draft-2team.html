@@ -905,6 +905,46 @@
         }
     }
 
+    // 단계 P-3: 라인고정 모드 — 픽 가능한 멤버 카드를 grid 바깥(아래)으로 이동
+    //   전체 폭 사용해서 5컬럼 라인별 그리드가 충분히 펼쳐지도록
+    function _moveMemberCardBelowGrid() {
+        const memberCard = document.getElementById('membersGrid');
+        if (!memberCard) return;
+        const memberCardWrapper = memberCard.closest('.card');
+        if (!memberCardWrapper) return;
+        const grid = document.querySelector('.draft-3col-grid');
+        if (!grid) return;
+        const pageWrap = grid.parentNode;
+        if (!pageWrap) return;
+
+        // 이미 grid 바깥에 있으면 skip
+        if (memberCardWrapper.dataset.movedBelow === '1') return;
+
+        // grid 바로 뒤에 삽입
+        if (grid.nextSibling) {
+            pageWrap.insertBefore(memberCardWrapper, grid.nextSibling);
+        } else {
+            pageWrap.appendChild(memberCardWrapper);
+        }
+        memberCardWrapper.dataset.movedBelow = '1';
+        memberCardWrapper.style.marginTop = '12px';
+    }
+
+    function _restoreMemberCardToCenter() {
+        const memberCard = document.getElementById('membersGrid');
+        if (!memberCard) return;
+        const memberCardWrapper = memberCard.closest('.card');
+        if (!memberCardWrapper) return;
+        if (memberCardWrapper.dataset.movedBelow !== '1') return;
+
+        const centerColumn = document.getElementById('centerColumn');
+        if (centerColumn) {
+            centerColumn.appendChild(memberCardWrapper);
+            memberCardWrapper.dataset.movedBelow = '';
+            memberCardWrapper.style.marginTop = '';
+        }
+    }
+
     function renderTeams2() {
         // 단계 P-3: 라인고정 모드 감지 (위에서 사용)
         const isLineFixedForLayout = _isLineFixedMode();
@@ -914,18 +954,21 @@
         const pageWrap = document.querySelector('.page-wrap');
         const grid = document.querySelector('.draft-3col-grid');
         if (isLineFixedForLayout) {
-            // 라인고정 2팀 — 페이지 폭 확장 + 중앙 픽 영역 더 넓게 (5컬럼 멤버 그리드 보이도록)
+            // 라인고정 2팀 — 페이지 폭 확장 (5컬럼 멤버 그리드 보이도록)
             if (pageWrap) pageWrap.style.maxWidth = 'min(1800px, 98vw)';
             if (grid) {
-                grid.style.gridTemplateColumns = '0.7fr 3fr 0.7fr';  // 중앙 압도적으로 넓게
-                grid.style.gap = '12px';
+                grid.style.gridTemplateColumns = '';  // 원래 비율 (1fr 1fr 1fr)
+                grid.style.gap = '';
             }
+            // 픽 가능한 멤버 카드를 grid 바깥(아래)으로 이동 → 전체 폭 사용
+            _moveMemberCardBelowGrid();
         } else {
             if (pageWrap) pageWrap.style.maxWidth = '';
             if (grid) {
                 grid.style.gridTemplateColumns = '';
                 grid.style.gap = '';
             }
+            _restoreMemberCardToCenter();
         }
 
         // 기존 2팀 흐름 — myTeamBox(왼쪽), otherTeamBox(오른쪽)
