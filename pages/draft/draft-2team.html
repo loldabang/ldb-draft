@@ -811,34 +811,37 @@
             return;
         }
 
-        const _LINE_LABELS = ['탑', '정글', '미드', '원딜', '서폿'];
-
-        // 단계 P-3: 라인고정 모드면 라인별 그룹화
+        // 단계 P-3: 라인고정 모드면 라인별 그룹화 (가로 5컬럼)
         const isLineFixed = _isLineFixedMode();
-        let groupedRender;
+        const _LINE_LABELS_DR = ['탑', '정글', '미드', '원딜', '서폿'];
         if (isLineFixed) {
             const byLine = [[], [], [], [], []];
             visibleMembers.forEach(m => {
                 const r = (m && m.role !== undefined && m.role !== null) ? m.role : -1;
                 if (r >= 0 && r <= 4) byLine[r].push(m);
             });
-            grid.style.display = 'block'; // grid 해제 — 라인 헤더 + 멤버 박스 흐름
-            groupedRender = true;
+            // 5 컬럼 가로 grid
+            grid.style.cssText = 'display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px;';
             for (let i = 0; i < 5; i++) {
-                if (byLine[i].length === 0) continue;
+                const col = document.createElement('div');
+                col.style.cssText = 'display: flex; flex-direction: column; gap: 4px; min-width: 0;';
                 // 라인 헤더
                 const header = document.createElement('div');
-                header.style.cssText = 'font-weight:800; font-size:12px; padding:5px 10px; background:linear-gradient(135deg, #4338ca, #6366f1); color:#fff; border-radius:6px; margin: 10px 0 6px; display:inline-block;';
-                header.innerText = _LINE_LABELS[i];
-                grid.appendChild(header);
-                // 멤버 박스들 (라인 내)
-                const lineGrid = document.createElement('div');
-                lineGrid.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
-                byLine[i].forEach(rawM => {
-                    const btn = _buildMemberBtn(rawM, isMyTurn);
-                    lineGrid.appendChild(btn);
-                });
-                grid.appendChild(lineGrid);
+                header.style.cssText = 'text-align:center; font-weight:800; font-size:11px; padding:5px 4px; background:linear-gradient(135deg, #4338ca, #6366f1); color:#fff; border-radius:5px; margin-bottom:3px;';
+                header.innerText = _LINE_LABELS_DR[i];
+                col.appendChild(header);
+                if (byLine[i].length === 0) {
+                    const empty = document.createElement('div');
+                    empty.style.cssText = 'font-size:10px; color:#9ca3af; text-align:center; font-style:italic; padding:8px;';
+                    empty.innerText = '없음';
+                    col.appendChild(empty);
+                } else {
+                    byLine[i].forEach(rawM => {
+                        const btn = _buildMemberBtn(rawM, isMyTurn);
+                        col.appendChild(btn);
+                    });
+                }
+                grid.appendChild(col);
             }
             return;
         }
@@ -892,14 +895,26 @@
     }
 
     function renderTeams2() {
+        // 단계 P-3: 라인고정 모드 감지 (위에서 사용)
+        const isLineFixedForLayout = _isLineFixedMode();
+
         // 단계 O-3 (fix): 2팀 모드 → nteam 클래스 제거 + 인라인 스타일 reset
         document.body.classList.remove('nteam-mode', 'nteam-mode-large');
         const pageWrap = document.querySelector('.page-wrap');
         const grid = document.querySelector('.draft-3col-grid');
-        if (pageWrap) pageWrap.style.maxWidth = '';
-        if (grid) {
-            grid.style.gridTemplateColumns = '';
-            grid.style.gap = '';
+        if (isLineFixedForLayout) {
+            // 라인고정 2팀 — 페이지 폭 확장 (5컬럼 멤버 그리드 보이도록)
+            if (pageWrap) pageWrap.style.maxWidth = 'min(1700px, 96vw)';
+            if (grid) {
+                grid.style.gridTemplateColumns = '1fr 2fr 1fr';  // 중앙 더 넓게
+                grid.style.gap = '12px';
+            }
+        } else {
+            if (pageWrap) pageWrap.style.maxWidth = '';
+            if (grid) {
+                grid.style.gridTemplateColumns = '';
+                grid.style.gap = '';
+            }
         }
 
         // 기존 2팀 흐름 — myTeamBox(왼쪽), otherTeamBox(오른쪽)
@@ -941,15 +956,15 @@
         const isLineFixed = _isLineFixedMode();
         const _LL = ['탑', '정글', '미드', '원딜', '서폿'];
 
-        // 라인고정 모드 — 팀장 라인 추론
+        // 라인고정 모드 — 팀장 라인 추론 (members 풀에 없는 1라인 = 팀장 공통 라인)
         let leaderLine = -1;
         if (isLineFixed) {
-            const used = new Set();
-            myPicks.concat(otherPicks).forEach(n => {
-                if (roleMap[n] !== undefined) used.add(roleMap[n]);
+            const linesInMembers = new Set();
+            members.forEach(m => {
+                if (m && m.role !== undefined && m.role !== null) linesInMembers.add(m.role);
             });
             for (let i = 0; i < 5; i++) {
-                if (!used.has(i)) { leaderLine = i; break; }
+                if (!linesInMembers.has(i)) { leaderLine = i; break; }
             }
         }
 
