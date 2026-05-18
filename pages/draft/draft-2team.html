@@ -926,12 +926,32 @@
 
         const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
         const scoreMap = {};
+        const roleMap = {};
         members.forEach(m => {
-            if (m && typeof m === 'object' && m.name) scoreMap[m.name] = m.score;
+            if (m && typeof m === 'object' && m.name) {
+                scoreMap[m.name] = m.score;
+                if (m.role !== undefined && m.role !== null) roleMap[m.name] = m.role;
+            }
         });
 
         const scoreBadge = (sc) => (sc !== null && sc !== undefined && sc !== '')
             ? `<span class="member-score-badge">${sc}</span>` : '';
+
+        // 단계 P-3: 라인고정 모드 — 라인 순서대로 표시 (탑→정글→미드→원딜→서폿)
+        const isLineFixed = _isLineFixedMode();
+        const _LL = ['탑', '정글', '미드', '원딜', '서폿'];
+
+        // 라인고정 모드 — 팀장 라인 추론
+        let leaderLine = -1;
+        if (isLineFixed) {
+            const used = new Set();
+            myPicks.concat(otherPicks).forEach(n => {
+                if (roleMap[n] !== undefined) used.add(roleMap[n]);
+            });
+            for (let i = 0; i < 5; i++) {
+                if (!used.has(i)) { leaderLine = i; break; }
+            }
+        }
 
         // 단계 O-3 (fix #6): 사진 2 디자인 — team-vbox로 통합
         const buildBox = (teamLabel, leaderName, leaderScore, picks, isOpponent) => {
@@ -939,14 +959,39 @@
             const total = (Number(leaderScore) || 0) + picks.reduce((s, n) => s + (Number(scoreMap[n]) || 0), 0);
             const count = 1 + picks.length;
             let html = `<div class="team-vbox${isOpponent ? ' opponent' : ''}">
-                <div class="team-vbox-title">${teamLabel}<span class="small">합산 ${total}점 (${count}명)</span></div>
-                <div class="team-vbox-row leader"><span>👑 ${escapeHtml(leaderName || '(미정)')}</span>${scoreBadge(leaderScore)}</div>`;
-            for (let i = 0; i < 4; i++) {
-                if (i < picks.length) {
-                    const sc = scoreMap[picks[i]];
-                    html += `<div class="team-vbox-row"><span>${escapeHtml(picks[i])}</span>${scoreBadge(sc)}</div>`;
-                } else {
-                    html += `<div class="team-vbox-row empty"><span>(픽 대기)</span></div>`;
+                <div class="team-vbox-title">${teamLabel}<span class="small">합산 ${total}점 (${count}명)</span></div>`;
+
+            if (isLineFixed) {
+                // 라인고정 — 5 슬롯 (탑/정글/미드/원딜/서폿) 라인 순서로
+                const slots = new Array(5).fill(null);
+                if (leaderLine >= 0) {
+                    slots[leaderLine] = { type: 'leader', name: leaderName, score: leaderScore };
+                }
+                picks.forEach(n => {
+                    const r = roleMap[n];
+                    if (r !== undefined && r >= 0 && r < 5 && !slots[r]) {
+                        slots[r] = { type: 'member', name: n, score: scoreMap[n] };
+                    }
+                });
+                for (let i = 0; i < 5; i++) {
+                    const linePrefix = `<span style="font-size:10px; color:#4338ca; font-weight:800; min-width:32px; display:inline-block; margin-right:6px;">${_LL[i]}</span>`;
+                    if (!slots[i]) {
+                        html += `<div class="team-vbox-row empty">${linePrefix}<span>(픽 대기)</span></div>`;
+                    } else if (slots[i].type === 'leader') {
+                        html += `<div class="team-vbox-row leader">${linePrefix}<span>👑 ${escapeHtml(slots[i].name || '(미정)')}</span>${scoreBadge(slots[i].score)}</div>`;
+                    } else {
+                        html += `<div class="team-vbox-row">${linePrefix}<span>${escapeHtml(slots[i].name)}</span>${scoreBadge(slots[i].score)}</div>`;
+                    }
+                }
+            } else {
+                html += `<div class="team-vbox-row leader"><span>👑 ${escapeHtml(leaderName || '(미정)')}</span>${scoreBadge(leaderScore)}</div>`;
+                for (let i = 0; i < 4; i++) {
+                    if (i < picks.length) {
+                        const sc = scoreMap[picks[i]];
+                        html += `<div class="team-vbox-row"><span>${escapeHtml(picks[i])}</span>${scoreBadge(sc)}</div>`;
+                    } else {
+                        html += `<div class="team-vbox-row empty"><span>(픽 대기)</span></div>`;
+                    }
                 }
             }
             html += `</div>`;
