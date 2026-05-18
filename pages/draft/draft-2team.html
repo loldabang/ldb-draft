@@ -1133,11 +1133,11 @@
         }
         if (grid) {
             if (teamCount >= 6) {
-                // 단계 P-3 (fix): 8팀 모드 — 내 팀 확실히 + 픽 영역 더 넓게 + 상대 팀들 살짝 컴팩트
-                grid.style.gridTemplateColumns = '1.2fr 2fr 2.3fr';
+                // 단계 P-3 (fix): 8팀 모드 — 내 팀 더 넓게 + 픽 영역 넓게 + 상대 팀 컴팩트
+                grid.style.gridTemplateColumns = '1.7fr 2fr 2.3fr';
                 grid.style.gap = '12px';
             } else if (teamCount >= 4) {
-                grid.style.gridTemplateColumns = '1fr 1.5fr 1.8fr';
+                grid.style.gridTemplateColumns = '1.4fr 1.5fr 1.8fr';
                 grid.style.gap = '12px';
             }
         }
