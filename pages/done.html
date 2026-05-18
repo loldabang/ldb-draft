@@ -236,11 +236,19 @@
         // 단계 I: 점수 lookup + 팀장 점수
         const members = Array.isArray(currentRoom.members) ? currentRoom.members : [];
         const scoreMap = {};
+        const roleMap = {};
         members.forEach(m => {
-            if (m && typeof m === 'object' && m.name) scoreMap[m.name] = m.score;
+            if (m && typeof m === 'object' && m.name) {
+                scoreMap[m.name] = m.score;
+                if (m.role !== undefined && m.role !== null) roleMap[m.name] = m.role;
+            }
         });
         scoreMap[currentRoom.leader1_name] = currentRoom.leader1_score;
         scoreMap[currentRoom.leader2_name] = currentRoom.leader2_score;
+
+        // 단계 P-3: 라인고정 모드 감지
+        const isLineFixed = members.length > 0 && members[0] && members[0].role !== undefined && members[0].role !== null;
+        const _LINE_LABELS = ['탑', '정글', '미드', '원딜', '서폿'];
 
         const scoreBadgeHtml = (name) => {
             const sc = scoreMap[name];
@@ -248,26 +256,69 @@
                 ? `<span class="member-score-badge">${sc}</span>` : '';
         };
 
+        // 단계 P-3: 라인고정 모드 — 라인 순서대로 정렬
+        const sortByLine = (memberArr) => {
+            if (!isLineFixed) return memberArr;
+            return memberArr.slice().sort((a, b) => {
+                const ra = roleMap[a] !== undefined ? roleMap[a] : 99;
+                const rb = roleMap[b] !== undefined ? roleMap[b] : 99;
+                return ra - rb;
+            });
+        };
+
+        const sortedTeam1 = sortByLine(team1Members);
+        const sortedTeam2 = sortByLine(team2Members);
+
         // 팀 합산 점수
-        const team1Total = team1Members.reduce((sum, n) => {
+        const team1Total = sortedTeam1.reduce((sum, n) => {
             const s = scoreMap[n];
             return sum + (typeof s === 'number' ? s : 0);
         }, 0);
-        const team2Total = team2Members.reduce((sum, n) => {
+        const team2Total = sortedTeam2.reduce((sum, n) => {
             const s = scoreMap[n];
             return sum + (typeof s === 'number' ? s : 0);
         }, 0);
 
+        // 멤버 행 렌더 — 라인고정 모드면 라인 라벨 prefix
+        const renderMemberRow = (m, isLeader) => {
+            const linePrefix = isLineFixed && roleMap[m] !== undefined
+                ? `<span style="font-size:11px; color:#4338ca; font-weight:800; min-width:32px; display:inline-block;">${_LINE_LABELS[roleMap[m]]}</span> `
+                : '';
+            return `<div class="team-member${isLeader?' leader':''}">${linePrefix}<span>${escapeHtml(m)}</span>${scoreBadgeHtml(m)}</div>`;
+        };
+
         $('finalTeamsDisplay').innerHTML = `
             <div class="team-box team1 ${team1Class}">
                 <div class="team-title">🏆 1팀 ${team1Badge} <span class="team-total">합산 ${team1Total}점</span></div>
-                ${team1Members.map((m, i) => `<div class="team-member${i===0?' leader':''}"><span>${escapeHtml(m)}</span>${scoreBadgeHtml(m)}</div>`).join('')}
+                ${sortedTeam1.map((m, i) => renderMemberRow(m, m === currentRoom.leader1_name)).join('')}
             </div>
             <div class="team-box team2 ${team2Class}">
                 <div class="team-title">🏆 2팀 ${team2Badge} <span class="team-total">합산 ${team2Total}점</span></div>
-                ${team2Members.map((m, i) => `<div class="team-member${i===0?' leader':''}"><span>${escapeHtml(m)}</span>${scoreBadgeHtml(m)}</div>`).join('')}
+                ${sortedTeam2.map((m, i) => renderMemberRow(m, m === currentRoom.leader2_name)).join('')}
             </div>
         `;
+
+        // 단계 P-3: admin으로 BroadcastChannel — 라인고정이면 role 정보 함께
+        try {
+            const bc = new BroadcastChannel('loldabang_draft');
+            const buildTeamData = (membersList, leaderName, leaderScore) => {
+                const leaderRole = isLineFixed ? roleMap[leaderName] : null;
+                const memberItems = membersList
+                    .filter(n => n !== leaderName)
+                    .map(n => ({ name: n, score: scoreMap[n], role: isLineFixed ? roleMap[n] : null }));
+                return {
+                    leaderName: leaderName,
+                    leaderScore: leaderScore,
+                    leaderRole: leaderRole,
+                    members: memberItems
+                };
+            };
+            bc.postMessage({
+                type: 'final_teams',
+                team1: buildTeamData(sortedTeam1, currentRoom.leader1_name, currentRoom.leader1_score),
+                team2: buildTeamData(sortedTeam2, currentRoom.leader2_name, currentRoom.leader2_score)
+            });
+        } catch (e) { console.warn('broadcast failed:', e); }
     }
 
     async function renderDoneN() {
