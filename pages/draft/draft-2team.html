@@ -126,6 +126,16 @@
             align-items: center;
             justify-content: space-between;
             gap: 8px;
+            min-width: 0;
+        }
+        /* 단계 P-3: 라인고정 모드 — 멤버 이름 한 줄로 (필요 시 잘림) */
+        body.line-fixed-mode-draft .member-btn .member-name-wrap {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: inline-block;
+            min-width: 0;
+            flex: 1;
         }
         .member-btn:hover:not(:disabled) {
             border-color: var(--primary);
@@ -815,6 +825,7 @@
         const isLineFixed = _isLineFixedMode();
         const _LINE_LABELS_DR = ['탑', '정글', '미드', '원딜', '서폿'];
         if (isLineFixed) {
+            document.body.classList.add('line-fixed-mode-draft');
             const byLine = [[], [], [], [], []];
             visibleMembers.forEach(m => {
                 const r = (m && m.role !== undefined && m.role !== null) ? m.role : -1;
@@ -903,10 +914,10 @@
         const pageWrap = document.querySelector('.page-wrap');
         const grid = document.querySelector('.draft-3col-grid');
         if (isLineFixedForLayout) {
-            // 라인고정 2팀 — 페이지 폭 확장 (5컬럼 멤버 그리드 보이도록)
-            if (pageWrap) pageWrap.style.maxWidth = 'min(1700px, 96vw)';
+            // 라인고정 2팀 — 페이지 폭 확장 + 중앙 픽 영역 더 넓게 (5컬럼 멤버 그리드 보이도록)
+            if (pageWrap) pageWrap.style.maxWidth = 'min(1800px, 98vw)';
             if (grid) {
-                grid.style.gridTemplateColumns = '1fr 2fr 1fr';  // 중앙 더 넓게
+                grid.style.gridTemplateColumns = '0.7fr 3fr 0.7fr';  // 중앙 압도적으로 넓게
                 grid.style.gap = '12px';
             }
         } else {
