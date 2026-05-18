@@ -293,6 +293,14 @@
         }
     }
 
+    // 단계 P-3: 라인고정 모드 감지
+    function _isLineFixedMode() {
+        if (!currentRoom || !Array.isArray(currentRoom.members) || currentRoom.members.length === 0) return false;
+        return currentRoom.members[0].role !== undefined && currentRoom.members[0].role !== null;
+    }
+
+    const _LINE_LABELS = ['탑', '정글', '미드', '원딜', '서폿'];
+
     function renderMembers() {
         const list = $('memberPreviewList');
         const countEl = $('memberCount');
@@ -303,15 +311,34 @@
             list.innerHTML = '<div class="member-preview-row" style="color:var(--text-muted); font-style:italic;">멤버 정보가 없습니다.</div>';
             return;
         }
-        // 단계 I: members가 {name, score} 객체 배열
-        list.innerHTML = members.map(m => {
+
+        const buildRow = m => {
             const name = (m && typeof m === 'object') ? (m.name || '') : String(m);
             const score = (m && typeof m === 'object') ? m.score : null;
             const scoreHtml = (score !== null && score !== undefined && score !== '')
-                ? `<span class="member-score-badge">${score}</span>`
-                : '';
+                ? `<span class="member-score-badge">${score}</span>` : '';
             return `<div class="member-preview-row"><span class="member-name">${escapeHtml(name)}</span>${scoreHtml}</div>`;
-        }).join('');
+        };
+
+        // 단계 P-3: 라인고정 모드면 라인별 그룹화
+        if (_isLineFixedMode()) {
+            const byLine = [[], [], [], [], []];
+            members.forEach(m => {
+                const r = (m.role !== undefined && m.role !== null) ? m.role : -1;
+                if (r >= 0 && r <= 4) byLine[r].push(m);
+            });
+            let html = '';
+            for (let i = 0; i < 5; i++) {
+                if (byLine[i].length === 0) continue;
+                html += `<div style="font-weight:800; color:#4338ca; margin-top:8px; margin-bottom:4px; font-size:13px; padding:4px 8px; background:linear-gradient(135deg, #4338ca, #6366f1); color:#fff; border-radius:6px; display:inline-block;">${_LINE_LABELS[i]}</div>`;
+                html += byLine[i].map(buildRow).join('');
+            }
+            list.innerHTML = html;
+            return;
+        }
+
+        // 단계 I: members가 {name, score} 객체 배열 (라인고정 모드 아님)
+        list.innerHTML = members.map(buildRow).join('');
     }
 
     function renderTeams() {
