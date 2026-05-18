@@ -51,7 +51,7 @@ body {
 
 /* 단계 O-3 (fix #4): 드래프트 페이지는 더 넓게 (3등분 화면 활용) */
 body.draft-wide .page-wrap {
-    max-width: 1500px;
+    max-width: 1700px;
 }
 
 /* ===== 카드 ===== */
@@ -365,8 +365,8 @@ p {
    ============================================================================ */
 .draft-3col-grid {
     display: grid;
-    /* 단계 O-3 (fix #4 재수정): 1:1:1 균등 3등분 */
-    grid-template-columns: 1fr 1fr 1fr;
+    /* 단계 O-3 (fix): 왼쪽=내팀(1fr) / 중앙=상태+멤버(1fr) / 오른쪽=상대팀들(2fr - 2열 들어감) */
+    grid-template-columns: 1fr 1fr 2fr;
     gap: 12px;
     align-items: start;
 }
@@ -377,11 +377,22 @@ p {
     margin-bottom: 10px;
 }
 
+/* 단계 O-3 (fix): 6/8팀일 때 오른쪽 컬럼 더 넓게 + 전체 페이지 더 넓게 */
+body.nteam-mode-large .page-wrap {
+    max-width: 1800px;
+}
+body.nteam-mode-large .draft-3col-grid {
+    grid-template-columns: 1fr 1.1fr 2.6fr;
+}
+
 /* 좁은 화면 — 1단 (모바일) */
 @media (max-width: 900px) {
     .draft-3col-grid {
         grid-template-columns: 1fr;
         gap: 10px;
+    }
+    body.nteam-mode-large .draft-3col-grid {
+        grid-template-columns: 1fr;
     }
 }
 
