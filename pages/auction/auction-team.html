@@ -290,6 +290,22 @@
                 return;
             }
 
+            // 단계 P-4: 팀장 확인 화면 — 처음 접속한 경우만
+            const claimKey = 'loldabang_auctionClaim_' + currentRoom.room_code + '_' + myTeam.team_index;
+            const alreadyConfirmed = localStorage.getItem(claimKey) === '1';
+            if (!alreadyConfirmed) {
+                const ok = await _showClaimConfirmScreen(myTeam.leader_name);
+                if (!ok) {
+                    document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
+                        <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+                        <h2 style="font-size:18px; margin-bottom:10px; color:#dc2626;">접속이 거부되었습니다</h2>
+                        <p style="font-size:13px; color:#6b7280;">본인이 아니라고 응답하셨습니다.<br>관리자에게 문의해주세요.</p>
+                    </div>`;
+                    return;
+                }
+                localStorage.setItem(claimKey, '1');
+            }
+
             // 4. 낙찰 결과 로드 (auction-common.js)
             auctionResults = await loadAuctionResults(currentRoom.room_code);
 
