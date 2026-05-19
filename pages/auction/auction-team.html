@@ -68,6 +68,46 @@
         }
         .section-title .count { color: #6b7280; font-weight: 700; }
 
+        .pool-filter {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 8px;
+            padding: 6px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        .filter-mode-row, .filter-lane-row {
+            display: flex;
+            gap: 3px;
+        }
+        .filter-mode-btn, .filter-lane-btn {
+            flex: 1;
+            padding: 3px 4px;
+            font-size: 10px;
+            font-weight: 700;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #6b7280;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .filter-mode-btn:hover, .filter-lane-btn:hover {
+            border-color: #6366f1;
+            color: #4338ca;
+        }
+        .filter-mode-btn.active {
+            background: #6366f1;
+            color: #fff;
+            border-color: #4338ca;
+        }
+        .filter-lane-btn.active {
+            background: #fbbf24;
+            color: #78350f;
+            border-color: #d97706;
+        }
         .pool-list { max-height: 400px; overflow-y: auto; padding-right: 4px; }
         .pool-list.small { max-height: 200px; }
         .pool-item {
@@ -110,8 +150,8 @@
         .pool-item.rejected .pool-tier { background: #dc2626; }
         .pool-item-bot {
             display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 4px 6px;
+            grid-template-columns: 18px auto 18px 1fr;
+            gap: 4px;
             font-size: 10px;
             align-items: center;
         }
@@ -120,6 +160,7 @@
             font-weight: 800;
             color: #6b7280;
             white-space: nowrap;
+            text-align: center;
         }
         .pool-lane-label.main { color: #92400e; }
         .pool-lane-label.hope { color: #5b21b6; }
@@ -127,6 +168,7 @@
             display: flex;
             gap: 3px;
             flex-wrap: wrap;
+            align-items: center;
         }
         .pool-lane {
             padding: 1px 7px;
@@ -419,50 +461,53 @@
         .points-board {
             background: linear-gradient(135deg, #1e293b, #334155);
             color: #fff;
-            border-radius: 14px;
-            padding: 12px 16px;
-            margin-bottom: 12px;
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
         }
         .points-board-title {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 800;
             color: #94a3b8;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             text-align: center;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
         .points-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-            gap: 6px;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 5px;
         }
         .points-cell {
             background: rgba(255,255,255,0.08);
-            border-radius: 8px;
-            padding: 8px 10px;
+            border-radius: 6px;
+            padding: 5px 8px;
             text-align: center;
             border: 2px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
         }
         .points-cell.mine {
             background: linear-gradient(135deg, #6366f1, #4338ca);
             border-color: #818cf8;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
         }
         .points-cell .team-label {
             font-size: 11px;
             color: #cbd5e1;
             font-weight: 700;
-            margin-bottom: 2px;
         }
         .points-cell.mine .team-label { color: #e0e7ff; }
         .points-cell .point-num {
-            font-size: 22px;
+            font-size: 16px;
             font-weight: 800;
             color: #fff;
         }
         .points-cell .point-unit {
-            font-size: 11px;
+            font-size: 10px;
             color: #94a3b8;
             font-weight: 700;
         }
@@ -507,6 +552,10 @@
         let timerInterval = null;
         let realtimeSubs = [];
         let teamSlotsCount = 5;
+
+        // P-6 단계: 라인 필터 상태
+        let filterMode = 'all';  // all | main | hope
+        let filterLanes = new Set();  // 활성 라인들
 
         // 단계 P-6: 멤버 풀에서 파싱 정보 찾기 (팀장도 포함)
         function findMemberDetails(name) {
@@ -570,6 +619,40 @@
             t.innerText = msg;
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), ms || 2200);
+        }
+
+        // P-6: 필터 핸들러
+        function setFilterMode(btn, mode) {
+            filterMode = mode;
+            document.querySelectorAll('.filter-mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderPools();
+        }
+        function toggleLaneFilter(btn, lane) {
+            if (filterLanes.has(lane)) {
+                filterLanes.delete(lane);
+                btn.classList.remove('active');
+            } else {
+                filterLanes.add(lane);
+                btn.classList.add('active');
+            }
+            renderPools();
+        }
+        // 필터 통과 검사
+        function memberMatchesFilter(m) {
+            if (filterLanes.size === 0) return true;  // 라인 필터 없으면 통과
+            const det = findMemberDetails(m.name);
+            const main = (det && det.mainLanes) || (m.mainLanes || []);
+            const hope = (det && det.hopeLanes) || (m.hopeLanes || []);
+            let pool = [];
+            if (filterMode === 'main') pool = main;
+            else if (filterMode === 'hope') pool = hope;
+            else pool = [...main, ...hope];
+            // 필터 라인 중 하나라도 멤버의 풀에 있으면 통과
+            for (const l of filterLanes) {
+                if (pool.includes(l)) return true;
+            }
+            return false;
         }
 
         async function init() {
@@ -669,6 +752,20 @@
                             <div class="section-title">
                                 <span>📋 남은 멤버</span>
                                 <span class="count" id="remainingCount">(0)</span>
+                            </div>
+                            <div class="pool-filter">
+                                <div class="filter-mode-row">
+                                    <button class="filter-mode-btn active" data-mode="all" onclick="setFilterMode(this, 'all')">전체</button>
+                                    <button class="filter-mode-btn" data-mode="main" onclick="setFilterMode(this, 'main')">주만</button>
+                                    <button class="filter-mode-btn" data-mode="hope" onclick="setFilterMode(this, 'hope')">희망만</button>
+                                </div>
+                                <div class="filter-lane-row">
+                                    <button class="filter-lane-btn" data-lane="탑" onclick="toggleLaneFilter(this, '탑')">탑</button>
+                                    <button class="filter-lane-btn" data-lane="정글" onclick="toggleLaneFilter(this, '정글')">정글</button>
+                                    <button class="filter-lane-btn" data-lane="미드" onclick="toggleLaneFilter(this, '미드')">미드</button>
+                                    <button class="filter-lane-btn" data-lane="원딜" onclick="toggleLaneFilter(this, '원딜')">원딜</button>
+                                    <button class="filter-lane-btn" data-lane="서폿" onclick="toggleLaneFilter(this, '서폿')">서폿</button>
+                                </div>
                             </div>
                             <div id="remainingPool" class="pool-list"></div>
                         </div>
@@ -917,10 +1014,14 @@
 
             const remEl = document.getElementById('remainingPool');
             if (remEl) {
+                // P-6: 필터 적용
+                const filtered = remaining.filter(memberMatchesFilter);
                 if (remaining.length === 0) {
                     remEl.innerHTML = '<div class="pool-empty">남은 멤버 없음</div>';
+                } else if (filtered.length === 0) {
+                    remEl.innerHTML = '<div class="pool-empty">필터에 맞는 멤버 없음</div>';
                 } else {
-                    remEl.innerHTML = remaining.map(m => buildPoolItemHtml(m, false)).join('');
+                    remEl.innerHTML = filtered.map(m => buildPoolItemHtml(m, false)).join('');
                 }
             }
             document.getElementById('remainingCount').innerText = '(' + remaining.length + ')';
