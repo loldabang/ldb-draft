@@ -6,6 +6,34 @@
 //   getSiteBase, escapeHtml 등)
 // ============================================================================
 
+// 경매 팀장 잠금 (claim) — 처음 [예] 누르면 호출
+async function claimAuctionLeader(roomCode, leaderToken) {
+    const client = initSupabase();
+    if (!client) return { success: false };
+    const { data, error } = await client.rpc('claim_auction_leader', {
+        p_room_code: roomCode, p_leader_token: leaderToken
+    });
+    if (error) return { success: false, message: error.message };
+    const r = (data && data[0]) || {};
+    return {
+        success: !!r.success,
+        message: r.message || '',
+        alreadyClaimed: !!r.already_claimed
+    };
+}
+
+// 경매 팀장 검증 (claim 안 함) — 재로드 시 호출
+async function verifyAuctionLeader(roomCode, leaderToken) {
+    const client = initSupabase();
+    if (!client) return { success: false, claimed: false };
+    const { data, error } = await client.rpc('verify_auction_leader', {
+        p_room_code: roomCode, p_leader_token: leaderToken
+    });
+    if (error) return { success: false, claimed: false };
+    const r = (data && data[0]) || {};
+    return { success: !!r.success, claimed: !!r.claimed };
+}
+
 // 경매 RPC: 입찰
 async function placeAuctionBid(roomCode, leaderToken, amount) {
     const client = initSupabase();
