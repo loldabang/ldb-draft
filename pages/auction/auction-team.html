@@ -1002,19 +1002,25 @@
             const rejectedArr = Array.isArray(currentRoom.auction_rejected_members) ? currentRoom.auction_rejected_members : [];
             const rejectedNames = new Set(rejectedArr.map(r => r && r.name).filter(Boolean));
             const membersArr = Array.isArray(currentRoom.members) ? currentRoom.members : [];
+            const round2PoolArr = Array.isArray(currentRoom.auction_round2_pool) ? currentRoom.auction_round2_pool : [];
             const round = currentRoom.auction_round || 1;
 
             let remaining;
             if (round === 1) {
                 remaining = membersArr.filter(m => m && m.name && !calledNames.has(m.name) && !rejectedNames.has(m.name));
             } else {
+                // 2차+: round2_pool - 이미 낙찰 - 새로 유찰된 사람
                 const soldNames = new Set(auctionResults.map(r => r.member_name));
-                remaining = rejectedArr.filter(m => m && m.name && !soldNames.has(m.name));
+                remaining = round2PoolArr.filter(m =>
+                    m && m.name
+                    && !soldNames.has(m.name)
+                    && !calledNames.has(m.name)
+                    && !rejectedNames.has(m.name)
+                );
             }
 
             const remEl = document.getElementById('remainingPool');
             if (remEl) {
-                // P-6: 필터 적용
                 const filtered = remaining.filter(memberMatchesFilter);
                 if (remaining.length === 0) {
                     remEl.innerHTML = '<div class="pool-empty">남은 멤버 없음</div>';
@@ -1028,9 +1034,7 @@
 
             const rejEl = document.getElementById('rejectedPool');
             if (rejEl) {
-                if (round === 2) {
-                    rejEl.innerHTML = '<div class="pool-empty">2차 경매 진행 중</div>';
-                } else if (rejectedArr.length === 0) {
+                if (rejectedArr.length === 0) {
                     rejEl.innerHTML = '<div class="pool-empty">유찰 없음</div>';
                 } else {
                     rejEl.innerHTML = rejectedArr.map(m => buildPoolItemHtml(m, true)).join('');
