@@ -210,6 +210,55 @@
         }
         .auction-stage.bidding { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; }
         .auction-stage.done { background: linear-gradient(135deg, #ddd6fe, #c4b5fd); border: 2px solid #a78bfa; }
+        /* 최종 결과 */
+        .final-results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        .fr-team-card {
+            background: #fff;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 8px 10px;
+        }
+        .fr-team-card.my {
+            background: #ede9fe;
+            border-color: #8b5cf6;
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+        }
+        .fr-team-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .fr-team-title { font-size: 14px; font-weight: 800; color: #1f2937; }
+        .fr-team-points {
+            background: #10b981; color: #fff;
+            font-size: 11px; font-weight: 800;
+            padding: 3px 8px; border-radius: 9px;
+        }
+        .fr-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .fr-table td {
+            padding: 4px 5px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .fr-table .fr-name { font-weight: 700; color: #1f2937; }
+        .fr-table .fr-lane { text-align: center; color: #6b7280; font-weight: 700; font-size: 10px; }
+        .fr-table .fr-amount { text-align: right; color: #059669; font-weight: 800; }
+        .fr-leader-row { background: #fef3c7; }
+        .fr-leader-row .fr-name { color: #92400e; }
+        .fr-leader-row .fr-amount { color: #d97706; }
         .stage-title {
             font-size: 12px;
             font-weight: 800;
@@ -851,12 +900,55 @@
                 </div>`;
             } else if (state === 'done') {
                 wrap.innerHTML = `<div class="auction-stage done">
-                    <div class="stage-title">🎉 경매 종료</div>
-                    <p style="font-size:14px; color:#5b21b6; margin: 8px 0;">
-                        모든 경매가 완료되었습니다.
-                    </p>
+                    <div class="stage-title">🎉 경매 종료 — 최종 결과</div>
+                    ${buildFinalResultsHtml()}
+                    <button onclick="onTeamExit()" style="width:100%;padding:14px;margin-top:14px;background:linear-gradient(135deg,#5c6bc0,#3f51b5);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;">🚪 나가기</button>
                 </div>`;
             }
+        }
+
+        // P-6: 팀장 최종 결과 — 모든 팀 한눈에
+        function buildFinalResultsHtml() {
+            if (!allTeams || allTeams.length === 0) return '<p>팀 정보가 없습니다</p>';
+            return `<div class="final-results-grid">
+                ${allTeams.map(t => {
+                    const myMembers = auctionResults.filter(r => r.team_index === t.team_index);
+                    const isMyTeam = t.team_index === myTeam.team_index;
+                    const ld = findMemberDetails(t.leader_name);
+                    const lNick = ld ? ld.nick : t.leader_name;
+                    const lLane = ld && ld.mainLanes && ld.mainLanes.length > 0 ? ld.mainLanes.join(',') : '';
+                    let rows = `<tr class="fr-leader-row">
+                        <td class="fr-name">👑 ${escapeHtml(lNick)}</td>
+                        <td class="fr-lane">${escapeHtml(lLane || '-')}</td>
+                        <td class="fr-amount">${t.leader_score || 0}점</td>
+                    </tr>`;
+                    myMembers.forEach(m => {
+                        const det = findMemberDetails(m.member_name);
+                        const nick = det ? det.nick : m.member_name;
+                        const lane = det && det.mainLanes && det.mainLanes.length > 0 ? det.mainLanes.join(',') : '';
+                        rows += `<tr>
+                            <td class="fr-name">${escapeHtml(nick)}</td>
+                            <td class="fr-lane">${escapeHtml(lane || '-')}</td>
+                            <td class="fr-amount">${m.final_amount}P</td>
+                        </tr>`;
+                    });
+                    return `<div class="fr-team-card${isMyTeam ? ' my' : ''}">
+                        <div class="fr-team-head">
+                            <span class="fr-team-title">${t.team_index}팀${isMyTeam ? ' (나)' : ''}</span>
+                            <span class="fr-team-points">남은 ${t.auction_points}P</span>
+                        </div>
+                        <table class="fr-table">${rows}</table>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        }
+
+        function onTeamExit() {
+            try { window.close(); } catch (e) {}
+            // window.close() 안 되면 빈 페이지로 이동
+            setTimeout(() => {
+                window.location.href = 'about:blank';
+            }, 200);
         }
 
         function renderMyBidArea() {
