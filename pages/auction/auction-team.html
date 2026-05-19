@@ -109,16 +109,31 @@
         }
         .pool-item.rejected .pool-tier { background: #dc2626; }
         .pool-item-bot {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 4px 6px;
             font-size: 10px;
+            align-items: center;
+        }
+        .pool-lane-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+        .pool-lane-label.main { color: #92400e; }
+        .pool-lane-label.hope { color: #5b21b6; }
+        .pool-lane-values {
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap;
         }
         .pool-lane {
             padding: 1px 7px;
             border-radius: 8px;
             font-weight: 700;
             white-space: nowrap;
+            font-size: 10px;
         }
         .pool-lane.main { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
         .pool-lane.hope { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
@@ -481,6 +496,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../../draft-common.js"></script>
     <script src="../../auction-common.js"></script>
+    <script src="../../auction-parser.js"></script>
     <script>
         'use strict';
 
@@ -492,10 +508,26 @@
         let realtimeSubs = [];
         let teamSlotsCount = 5;
 
-        // 단계 P-6: 멤버 풀에서 파싱 정보 찾기
+        // 단계 P-6: 멤버 풀에서 파싱 정보 찾기 (팀장도 포함)
         function findMemberDetails(name) {
-            if (!currentRoom || !Array.isArray(currentRoom.members)) return null;
-            return currentRoom.members.find(m => m && m.name === name) || null;
+            if (!name) return null;
+            if (currentRoom && Array.isArray(currentRoom.members)) {
+                const found = currentRoom.members.find(m => m && m.name === name);
+                if (found) return found;
+            }
+            if (typeof AuctionParser !== 'undefined') {
+                const p = AuctionParser.parseMember(name, 'soft');
+                if (p && p.nick) return {
+                    name: name,
+                    nick: p.nick,
+                    tag: p.tag,
+                    peakTier: p.peakTier,
+                    currentTier: p.currentTier,
+                    mainLanes: p.mainLanes,
+                    hopeLanes: p.hopeLanes
+                };
+            }
+            return null;
         }
         function getDisplayName(name) {
             const det = findMemberDetails(name);
@@ -915,16 +947,16 @@
             const main = det && det.mainLanes && det.mainLanes.length > 0 ? det.mainLanes : (m.mainLanes || []);
             const hope = det && det.hopeLanes && det.hopeLanes.length > 0 ? det.hopeLanes : (m.hopeLanes || []);
             const tierStr = peak && curr && peak !== curr ? peak + '/' + curr : (peak || curr || '');
-            const mainStr = main.length > 0 ? main.join(',') : '';
-            const hopeStr = hope.length > 0 ? hope.join(',') : '';
             return `<div class="pool-item ${isRejected ? 'rejected' : ''}">
                 <div class="pool-item-top">
                     <span class="name-text">${escapeHtml(nick)}</span>
                     ${tierStr ? `<span class="pool-tier">${escapeHtml(tierStr)}</span>` : ''}
                 </div>
-                ${(mainStr || hopeStr) ? `<div class="pool-item-bot">
-                    ${mainStr ? `<span class="pool-lane main">주 ${escapeHtml(mainStr)}</span>` : ''}
-                    ${hopeStr ? `<span class="pool-lane hope">희 ${escapeHtml(hopeStr)}</span>` : ''}
+                ${(main.length > 0 || hope.length > 0) ? `<div class="pool-item-bot">
+                    <span class="pool-lane-label main">주</span>
+                    <span class="pool-lane-values">${main.map(l => `<span class="pool-lane main">${escapeHtml(l)}</span>`).join('') || '<span style="color:#9ca3af;font-size:10px;">-</span>'}</span>
+                    <span class="pool-lane-label hope">희</span>
+                    <span class="pool-lane-values">${hope.map(l => `<span class="pool-lane hope">${escapeHtml(l)}</span>`).join('') || '<span style="color:#9ca3af;font-size:10px;">-</span>'}</span>
                 </div>` : ''}
             </div>`;
         }
