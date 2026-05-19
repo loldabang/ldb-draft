@@ -770,6 +770,12 @@
                 localStorage.setItem(claimKey, '1');
             }
 
+            // P-6: claim 성공 — 메모리상 본인 팀의 leader_claimed = true 갱신
+            // (DB UPDATE realtime이 본인에게 안 올 수도 있으므로 명시적 갱신)
+            myTeam.leader_claimed = true;
+            const myIdx = allTeams.findIndex(t => t.id === myTeam.id);
+            if (myIdx !== -1) allTeams[myIdx].leader_claimed = true;
+
             auctionResults = await loadAuctionResults(currentRoom.room_code);
 
             renderMain();
