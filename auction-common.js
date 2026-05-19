@@ -60,7 +60,58 @@ async function updateAuctionSettings(roomCode, adminToken, opts) {
     };
     if (opts.timerSeconds !== undefined) params.p_timer_seconds = opts.timerSeconds;
     if (opts.showNextMember !== undefined) params.p_show_next_member = opts.showNextMember;
+    if (opts.previewSeconds !== undefined) params.p_preview_seconds = opts.previewSeconds;
+    if (opts.autoStart !== undefined) params.p_auto_start = opts.autoStart;
     const { data, error } = await client.rpc('update_auction_settings', params);
+    if (error) return { success: false, message: error.message };
+    const r = (data && data[0]) || {};
+    return { success: !!r.success, message: r.message || '' };
+}
+
+// 예고 → 입찰 전환
+async function startAuctionBidding(roomCode, adminToken) {
+    const client = initSupabase();
+    if (!client) return { success: false };
+    const { data, error } = await client.rpc('start_auction_bidding', {
+        p_room_code: roomCode, p_admin_token: adminToken
+    });
+    if (error) return { success: false, message: error.message };
+    const r = (data && data[0]) || {};
+    return { success: !!r.success, message: r.message || '' };
+}
+
+// 2차 경매 시작
+async function startAuctionRound2(roomCode, adminToken) {
+    const client = initSupabase();
+    if (!client) return { success: false };
+    const { data, error } = await client.rpc('start_auction_round2', {
+        p_room_code: roomCode, p_admin_token: adminToken
+    });
+    if (error) return { success: false, message: error.message };
+    const r = (data && data[0]) || {};
+    return { success: !!r.success, message: r.message || '' };
+}
+
+// 수동 배정
+async function manualAssignMember(roomCode, adminToken, memberName, teamIndex, amount) {
+    const client = initSupabase();
+    if (!client) return { success: false };
+    const { data, error } = await client.rpc('manual_assign_member', {
+        p_room_code: roomCode, p_admin_token: adminToken,
+        p_member_name: memberName, p_team_index: teamIndex, p_amount: amount
+    });
+    if (error) return { success: false, message: error.message };
+    const r = (data && data[0]) || {};
+    return { success: !!r.success, message: r.message || '' };
+}
+
+// 경매 완료
+async function completeAuction(roomCode, adminToken) {
+    const client = initSupabase();
+    if (!client) return { success: false };
+    const { data, error } = await client.rpc('complete_auction', {
+        p_room_code: roomCode, p_admin_token: adminToken
+    });
     if (error) return { success: false, message: error.message };
     const r = (data && data[0]) || {};
     return { success: !!r.success, message: r.message || '' };
