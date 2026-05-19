@@ -496,6 +496,14 @@
         .team-row .main-cell { color: #92400e; font-weight: 700; }
         .team-row .hope-cell { color: #5b21b6; }
         .team-row .amount-cell { text-align: right; color: #059669; font-weight: 800; padding-right: 6px; }
+        .team-row.leader-row.unclaimed { background: #fee2e2; }
+        .team-row.leader-row.unclaimed .unclaimed-cell {
+            text-align: center;
+            color: #dc2626;
+            font-weight: 800;
+            padding: 10px 5px;
+            font-size: 12px;
+        }
         .team-row.leader-row { background: #fef3c7; }
         .team-row.leader-row .name-cell { color: #92400e; }
         .team-row.leader-row .amount-cell.leader-pt { color: #d97706; }
@@ -870,9 +878,24 @@
                 if (state === 'rejected_pool_done') {
                     extra = '<p style="font-size:14px; color:#dc2626; margin-top:8px;">1차 경매 종료. 관리자가 2차 진행 또는 수동 배정 중.</p>';
                 }
+                // P-6: 첫 호출 전이면 다른 팀장 미접속 표시
+                const calledArr = currentRoom.auction_called_members || [];
+                const isFirstCall = (!Array.isArray(calledArr) || calledArr.length === 0)
+                    && (currentRoom.auction_round || 1) === 1
+                    && (!Array.isArray(auctionResults) || auctionResults.length === 0);
+                let unclaimedMsg = '';
+                if (isFirstCall) {
+                    const unclaimed = (allTeams || []).filter(t => !t.leader_claimed).map(t => `${t.team_index}팀`);
+                    if (unclaimed.length > 0) {
+                        unclaimedMsg = `<p style="font-size:13px; color:#dc2626; margin-top:8px; font-weight:700;">⏳ 팀장 접속 대기 중: ${unclaimed.join(', ')}</p>`;
+                    } else {
+                        unclaimedMsg = '<p style="font-size:13px; color:#059669; margin-top:8px; font-weight:700;">✅ 모든 팀장 접속 완료 — 곧 경매 시작!</p>';
+                    }
+                }
                 wrap.innerHTML = `<div class="auction-stage waiting">
                     <div class="stage-title">⏳ 다음 멤버 호출 대기</div>
                     <p style="font-size:13px; color:#6b7280;">관리자가 멤버를 호출하면 표시됩니다.</p>
+                    ${unclaimedMsg}
                     ${extra}
                 </div>`;
             } else if (state === 'previewing') {
@@ -1013,20 +1036,28 @@
                 const isHighest = bidderTeam === t.team_index;
                 const isMyTeam = t.team_index === myTeam.team_index;
                 const memberSlots = Math.max(0, teamSlotsCount - 1);
-                const ld = findMemberDetails(t.leader_name);
-                const lNick = ld ? ld.nick : t.leader_name;
-                const lPeak = ld && ld.peakTier ? ld.peakTier : '-';
-                const lCurr = ld && ld.currentTier ? ld.currentTier : '-';
-                const lMain = ld && ld.mainLanes && ld.mainLanes.length > 0 ? ld.mainLanes.join(',') : '-';
-                const lHope = ld && ld.hopeLanes && ld.hopeLanes.length > 0 ? ld.hopeLanes.join(',') : '-';
-                const leaderRow = `<tr class="team-row leader-row">
-                    <td class="name-cell" title="${escapeHtml(lNick)}">👑 ${escapeHtml(lNick)}</td>
-                    <td class="peak-cell">${escapeHtml(lPeak)}</td>
-                    <td class="curr-cell">${escapeHtml(lCurr)}</td>
-                    <td class="main-cell" title="${escapeHtml(lMain)}">${escapeHtml(lMain)}</td>
-                    <td class="hope-cell" title="${escapeHtml(lHope)}">${escapeHtml(lHope)}</td>
-                    <td class="amount-cell leader-pt">${t.leader_score || 0}점</td>
-                </tr>`;
+                const isClaimed = !!t.leader_claimed;
+                let leaderRow;
+                if (!isClaimed) {
+                    leaderRow = `<tr class="team-row leader-row unclaimed">
+                        <td colspan="6" class="unclaimed-cell">⏳ 팀장 미접속</td>
+                    </tr>`;
+                } else {
+                    const ld = findMemberDetails(t.leader_name);
+                    const lNick = ld ? ld.nick : t.leader_name;
+                    const lPeak = ld && ld.peakTier ? ld.peakTier : '-';
+                    const lCurr = ld && ld.currentTier ? ld.currentTier : '-';
+                    const lMain = ld && ld.mainLanes && ld.mainLanes.length > 0 ? ld.mainLanes.join(',') : '-';
+                    const lHope = ld && ld.hopeLanes && ld.hopeLanes.length > 0 ? ld.hopeLanes.join(',') : '-';
+                    leaderRow = `<tr class="team-row leader-row">
+                        <td class="name-cell" title="${escapeHtml(lNick)}">👑 ${escapeHtml(lNick)}</td>
+                        <td class="peak-cell">${escapeHtml(lPeak)}</td>
+                        <td class="curr-cell">${escapeHtml(lCurr)}</td>
+                        <td class="main-cell" title="${escapeHtml(lMain)}">${escapeHtml(lMain)}</td>
+                        <td class="hope-cell" title="${escapeHtml(lHope)}">${escapeHtml(lHope)}</td>
+                        <td class="amount-cell leader-pt">${t.leader_score || 0}점</td>
+                    </tr>`;
+                }
                 let memberRows = '';
                 for (let i = 0; i < memberSlots; i++) {
                     const m = myMembers[i];
@@ -1187,6 +1218,9 @@
             setTimeout(() => { if (el) el.innerText = ''; }, 3000);
         }
 
+        // P-6: 타이머 lock
+        let _lockedTimerSec = null;
+        let _lockedTimerLastBid = null;
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(tickTimer, 200);
@@ -1195,7 +1229,14 @@
             const d = document.getElementById('timerDisplay');
             if (!d || !currentRoom) return;
             if (currentRoom.auction_state !== 'bidding') return;
-            const remaining = computeAuctionTimerRemaining(currentRoom.last_bid_at, currentRoom.auction_timer_seconds);
+            const lastBid = currentRoom.last_bid_at;
+            if (!lastBid) return;
+            // 입찰 시점 lock
+            if (lastBid !== _lockedTimerLastBid) {
+                _lockedTimerSec = currentRoom.auction_timer_seconds || 10;
+                _lockedTimerLastBid = lastBid;
+            }
+            const remaining = computeAuctionTimerRemaining(lastBid, _lockedTimerSec || 10);
             d.innerText = '⏱ ' + remaining.toFixed(1) + '초';
             if (remaining <= 3) d.classList.add('warning');
             else d.classList.remove('warning');
@@ -1225,6 +1266,7 @@
                     if (payload.new.team_index === myTeam.team_index) myTeam = payload.new;
                     renderPointsBoard();
                     renderTeams();
+                    renderStage();  // P-6: 미접속 안내 갱신
                     renderMyBidArea();
                 })
                 .subscribe()
