@@ -553,9 +553,9 @@
         let realtimeSubs = [];
         let teamSlotsCount = 5;
 
-        // P-6 단계: 라인 필터 상태
-        let filterMode = 'all';  // all | main | hope
-        let filterLanes = new Set();  // 활성 라인들
+        // P-6 단계: 라인 필터 상태 — 단일 선택
+        let filterMode = 'all';    // 'all' | 'main' | 'hope'
+        let filterLane = '';       // '' (전체) | '탑' | '정글' | '미드' | '원딜' | '서폿'
 
         // 단계 P-6: 멤버 풀에서 파싱 정보 찾기 (팀장도 포함)
         function findMemberDetails(name) {
@@ -621,26 +621,21 @@
             setTimeout(() => t.classList.remove('show'), ms || 2200);
         }
 
-        // P-6: 필터 핸들러
+        // P-6: 필터 핸들러 — 단일 선택
         function setFilterMode(btn, mode) {
             filterMode = mode;
             document.querySelectorAll('.filter-mode-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             renderPools();
         }
-        function toggleLaneFilter(btn, lane) {
-            if (filterLanes.has(lane)) {
-                filterLanes.delete(lane);
-                btn.classList.remove('active');
-            } else {
-                filterLanes.add(lane);
-                btn.classList.add('active');
-            }
+        function setFilterLane(btn, lane) {
+            filterLane = lane;
+            document.querySelectorAll('.filter-lane-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
             renderPools();
         }
-        // 필터 통과 검사
         function memberMatchesFilter(m) {
-            if (filterLanes.size === 0) return true;  // 라인 필터 없으면 통과
+            if (!filterLane) return true;
             const det = findMemberDetails(m.name);
             const main = (det && det.mainLanes) || (m.mainLanes || []);
             const hope = (det && det.hopeLanes) || (m.hopeLanes || []);
@@ -648,11 +643,7 @@
             if (filterMode === 'main') pool = main;
             else if (filterMode === 'hope') pool = hope;
             else pool = [...main, ...hope];
-            // 필터 라인 중 하나라도 멤버의 풀에 있으면 통과
-            for (const l of filterLanes) {
-                if (pool.includes(l)) return true;
-            }
-            return false;
+            return pool.includes(filterLane);
         }
 
         async function init() {
@@ -760,11 +751,12 @@
                                     <button class="filter-mode-btn" data-mode="hope" onclick="setFilterMode(this, 'hope')">희망만</button>
                                 </div>
                                 <div class="filter-lane-row">
-                                    <button class="filter-lane-btn" data-lane="탑" onclick="toggleLaneFilter(this, '탑')">탑</button>
-                                    <button class="filter-lane-btn" data-lane="정글" onclick="toggleLaneFilter(this, '정글')">정글</button>
-                                    <button class="filter-lane-btn" data-lane="미드" onclick="toggleLaneFilter(this, '미드')">미드</button>
-                                    <button class="filter-lane-btn" data-lane="원딜" onclick="toggleLaneFilter(this, '원딜')">원딜</button>
-                                    <button class="filter-lane-btn" data-lane="서폿" onclick="toggleLaneFilter(this, '서폿')">서폿</button>
+                                    <button class="filter-lane-btn active" data-lane="" onclick="setFilterLane(this, '')">전체</button>
+                                    <button class="filter-lane-btn" data-lane="탑" onclick="setFilterLane(this, '탑')">탑</button>
+                                    <button class="filter-lane-btn" data-lane="정글" onclick="setFilterLane(this, '정글')">정글</button>
+                                    <button class="filter-lane-btn" data-lane="미드" onclick="setFilterLane(this, '미드')">미드</button>
+                                    <button class="filter-lane-btn" data-lane="원딜" onclick="setFilterLane(this, '원딜')">원딜</button>
+                                    <button class="filter-lane-btn" data-lane="서폿" onclick="setFilterLane(this, '서폿')">서폿</button>
                                 </div>
                             </div>
                             <div id="remainingPool" class="pool-list"></div>
@@ -1086,7 +1078,12 @@
                 showBidMsg(r.message || '입찰 실패', 'error');
                 return;
             }
-            showBidMsg('✅ 입찰 완료 (' + amount + 'P)', 'success');
+            if (r.auto_sold) {
+                showBidMsg('🏆 ' + (r.message || '올인 자동 낙찰!'), 'success');
+                showToast('🏆 올인 자동 낙찰! 다른 팀이 더 올릴 수 없습니다');
+            } else {
+                showBidMsg('✅ 입찰 완료 (' + amount + 'P)', 'success');
+            }
             const inp = document.getElementById('bidCustomInput');
             if (inp) inp.value = '';
         }
