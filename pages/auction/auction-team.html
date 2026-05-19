@@ -69,16 +69,24 @@
         }
         .section-title .count { color: #6b7280; font-weight: 700; }
 
-        .pool-list { max-height: 260px; overflow-y: auto; }
-        .pool-list.small { max-height: 130px; font-size: 11px; }
+        .pool-list { max-height: 320px; overflow-y: auto; }
+        .pool-list.small { max-height: 160px; }
         .pool-item {
             background: #f3f4f6;
             border-radius: 6px;
-            padding: 5px 9px;
-            margin-bottom: 3px;
-            font-size: 11px;
+            padding: 6px 9px;
+            margin-bottom: 4px;
+            font-size: 12px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+        }
+        .pool-item .name-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .pool-item.rejected { background: #fef2f2; color: #991b1b; }
         .pool-empty {
@@ -90,11 +98,13 @@
         }
         .score-pill {
             background: #6366f1;
-            color: #fff;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 1px 6px;
-            border-radius: 8px;
+            color: #fff !important;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         /* 중앙 — 경매 진행 */
@@ -285,43 +295,83 @@
         .bid-msg.error { color: #dc2626; }
         .bid-msg.success { color: #059669; }
 
-        /* 오른쪽 — 팀별 현황 */
-        .team-cards { display: grid; gap: 6px; }
+        /* 오른쪽 — 팀별 현황 (드래프트와 비슷한 스타일) */
+        .team-cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
         .team-card {
-            border: 1.5px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 8px 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 10px 12px;
             background: #fff;
         }
-        .team-card.my-team { background: #ede9fe; border-color: #a78bfa; }
-        .team-card.highest { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; }
+        .team-card.my-team {
+            background: #ede9fe;
+            border-color: #8b5cf6;
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+        }
+        .team-card.highest {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-color: #f59e0b;
+        }
         .team-card-head {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 4px;
-            padding-bottom: 4px;
-            border-bottom: 1px dashed #e5e7eb;
-            font-size: 12px;
+            align-items: center;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px dashed #d1d5db;
         }
-        .team-card-title { font-weight: 800; color: #1f2937; }
+        .team-card-title {
+            font-weight: 800;
+            color: #1f2937;
+            font-size: 13px;
+        }
         .team-card-points {
             background: #10b981;
             color: #fff;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 800;
-            padding: 2px 7px;
-            border-radius: 9px;
+            padding: 2px 8px;
+            border-radius: 10px;
         }
         .team-card.highest .team-card-points { background: #f59e0b; }
-        .team-members-list { font-size: 10px; }
+        .team-members-list { font-size: 11px; }
         .team-member-item {
             display: flex;
             justify-content: space-between;
-            padding: 1px 0;
+            align-items: center;
+            padding: 3px 0;
             color: #4b5563;
+            gap: 6px;
         }
         .team-member-item.leader { color: #92400e; font-weight: 700; }
-        .team-member-amount { color: #059669; font-weight: 700; }
+        .team-member-item .name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .team-member-score-pill {
+            background: #6366f1;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1px 7px;
+            border-radius: 9px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .team-member-item.leader .team-member-score-pill { background: #f59e0b; }
+        .team-member-amount {
+            color: #059669;
+            font-weight: 800;
+            font-size: 10px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
 
         .toast-msg {
             position: fixed;
@@ -397,15 +447,51 @@
                 return;
             }
 
-            // 팀장 확인 화면 (첫 접속만)
+            // 팀장 확인 — DB의 claim 상태 확인
+            //   1) 다른 사람이 이미 claim했고 내 localStorage에는 기록 없음 → 거부
+            //   2) 본인이 이미 claim한 상태 → 통과 (재로드)
+            //   3) 아직 아무도 claim 안 함 → 확인 모달 → [예] → DB에 claim
             const claimKey = 'loldabang_auctionClaim_' + currentRoom.room_code + '_' + myTeam.team_index;
-            if (localStorage.getItem(claimKey) !== '1') {
+            const localOk = localStorage.getItem(claimKey) === '1';
+
+            // DB 상태 조회
+            const verifyRes = await verifyAuctionLeader(currentRoom.room_code, TOKEN);
+            if (verifyRes.claimed && !localOk) {
+                // 다른 사람이 이미 claim → 거부
+                document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
+                    <div style="font-size:48px; margin-bottom:16px;">🔒</div>
+                    <h2 style="font-size:20px; margin-bottom:10px; color:#dc2626;">이미 다른 사람이 접속 중입니다</h2>
+                    <p style="font-size:13px; color:#6b7280;">이 팀장의 링크는 한 번만 사용할 수 있습니다.<br>관리자에게 문의해주세요.</p>
+                </div>`;
+                return;
+            }
+
+            if (!verifyRes.claimed) {
+                // 첫 접속 — 확인 모달
                 const ok = await _showClaimConfirmScreen(myTeam.leader_name);
                 if (!ok) {
-                    document.body.innerHTML = `<div style="padding:60px; text-align:center;">
+                    document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
                         <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
                         <h2 style="font-size:18px; margin-bottom:10px; color:#dc2626;">접속이 거부되었습니다</h2>
                         <p style="font-size:13px; color:#6b7280;">본인이 아니라고 응답하셨습니다.</p>
+                    </div>`;
+                    return;
+                }
+                const claimRes = await claimAuctionLeader(currentRoom.room_code, TOKEN);
+                if (!claimRes.success) {
+                    document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
+                        <div style="font-size:48px; margin-bottom:16px;">❌</div>
+                        <h2 style="font-size:18px; margin-bottom:10px; color:#dc2626;">접속 실패</h2>
+                        <p style="font-size:13px; color:#6b7280;">${escapeHtml(claimRes.message || '인증에 실패했습니다.')}</p>
+                    </div>`;
+                    return;
+                }
+                if (claimRes.alreadyClaimed && !localOk) {
+                    // 동시 접속 — 다른 사람이 먼저 claim
+                    document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
+                        <div style="font-size:48px; margin-bottom:16px;">🔒</div>
+                        <h2 style="font-size:20px; margin-bottom:10px; color:#dc2626;">이미 다른 사람이 접속했습니다</h2>
+                        <p style="font-size:13px; color:#6b7280;">관리자에게 문의해주세요.</p>
                     </div>`;
                     return;
                 }
@@ -494,10 +580,19 @@
                 if (state === 'rejected_pool_done') {
                     extra = '<p style="font-size:14px; color:#dc2626; margin-top:8px;">1차 경매 종료. 관리자가 2차 진행 또는 수동 배정 중.</p>';
                 }
+                // 다음 멤버 공개 (admin이 ON 했고 + 미리뽑힌 멤버 있음)
+                let nextPreview = '';
+                if (currentRoom.auction_show_next_member && currentRoom.auction_next_member) {
+                    nextPreview = `<div style="margin-top:14px; padding:10px 14px; background:rgba(99, 102, 241, 0.1); border:2px dashed #818cf8; border-radius:10px;">
+                        <div style="font-size:11px; color:#4338ca; font-weight:800; margin-bottom:4px;">👁 다음 호출 예정</div>
+                        <div style="font-size:20px; font-weight:800; color:#4338ca;">${escapeHtml(currentRoom.auction_next_member)}</div>
+                    </div>`;
+                }
                 wrap.innerHTML = `<div class="auction-stage waiting">
                     <div class="stage-title">⏳ 다음 멤버 호출 대기</div>
                     <p style="font-size:13px; color:#6b7280;">관리자가 멤버를 호출하면 표시됩니다.</p>
                     ${extra}
+                    ${nextPreview}
                 </div>`;
             } else if (state === 'previewing') {
                 const previewSec = currentRoom.auction_preview_seconds || 2;
@@ -606,11 +701,11 @@
                     </div>
                     <div class="team-members-list">
                         <div class="team-member-item leader">
-                            <span>👑 ${escapeHtml(t.leader_name)}</span>
-                            <span>${t.leader_score || 0}점</span>
+                            <span class="name">👑 ${escapeHtml(t.leader_name)}</span>
+                            <span class="team-member-score-pill">${t.leader_score || 0}</span>
                         </div>
                         ${myMembers.map(m => `<div class="team-member-item">
-                            <span>${escapeHtml(m.member_name)}</span>
+                            <span class="name">${escapeHtml(m.member_name)}</span>
                             <span class="team-member-amount">${m.final_amount}P</span>
                         </div>`).join('')}
                     </div>
@@ -647,7 +742,7 @@
                     remEl.innerHTML = '<div class="pool-empty">남은 멤버 없음</div>';
                 } else {
                     remEl.innerHTML = remaining.map(m => `<div class="pool-item">
-                        <span>${escapeHtml(m.name)}</span>
+                        <span class="name-text">${escapeHtml(m.name)}</span>
                         ${m.score != null && m.score !== '' ? `<span class="score-pill">${m.score}</span>` : ''}
                     </div>`).join('');
                 }
@@ -662,7 +757,7 @@
                     rejEl.innerHTML = '<div class="pool-empty">유찰 없음</div>';
                 } else {
                     rejEl.innerHTML = rejectedArr.map(m => `<div class="pool-item rejected">
-                        <span>${escapeHtml(m.name)}</span>
+                        <span class="name-text">${escapeHtml(m.name)}</span>
                         ${m.score != null && m.score !== '' ? `<span class="score-pill">${m.score}</span>` : ''}
                     </div>`).join('');
                 }
