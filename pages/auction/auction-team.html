@@ -51,7 +51,7 @@
 
         .main-layout {
             display: grid;
-            grid-template-columns: 300px 1fr 360px;
+            grid-template-columns: 360px 1fr 420px;
             gap: 10px;
         }
         @media (max-width: 1150px) { .main-layout { grid-template-columns: 1fr; } }
@@ -72,41 +72,62 @@
         .pool-list.small { max-height: 200px; }
         .pool-item {
             background: #f3f4f6;
-            border-radius: 6px;
-            padding: 6px 10px;
-            margin-bottom: 4px;
+            border-radius: 8px;
+            padding: 7px 10px;
+            margin-bottom: 5px;
             font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .pool-item.rejected { background: #fef2f2; }
+        .pool-item-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-            overflow: hidden;
+            gap: 6px;
         }
-        .pool-item .name-text {
+        .pool-item-top .name-text {
             flex: 1;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            min-width: 0;
+            font-weight: 800;
+            font-size: 13px;
+            color: #1f2937;
         }
-        .pool-item.rejected { background: #fef2f2; color: #991b1b; }
+        .pool-item.rejected .name-text { color: #991b1b; }
+        .pool-tier {
+            background: #6366f1;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 9px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .pool-item.rejected .pool-tier { background: #dc2626; }
+        .pool-item-bot {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            font-size: 10px;
+        }
+        .pool-lane {
+            padding: 1px 7px;
+            border-radius: 8px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .pool-lane.main { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+        .pool-lane.hope { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
         .pool-empty {
             text-align: center;
             color: #9ca3af;
             padding: 16px 0;
             font-size: 11px;
             font-style: italic;
-        }
-        .score-pill {
-            background: #6366f1;
-            color: #fff;
-            font-size: 11px;
-            font-weight: 800;
-            padding: 2px 8px;
-            border-radius: 10px;
-            white-space: nowrap;
-            flex-shrink: 0;
         }
 
         /* 중앙 */
@@ -330,30 +351,45 @@
         .team-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 11px;
+            font-size: 10px;
+            table-layout: fixed;
         }
         .team-table th {
             background: #f9fafb;
-            padding: 5px 6px;
-            text-align: left;
+            padding: 4px 3px;
+            text-align: center;
             font-size: 10px;
             color: #6b7280;
             font-weight: 800;
             text-transform: uppercase;
             border-bottom: 1px solid #e5e7eb;
         }
-        .team-table .name-col { width: 38%; }
-        .team-table .tier-col { width: 18%; text-align: center !important; }
-        .team-table .lane-col { width: 22%; text-align: center !important; }
-        .team-table .amount-col { width: 22%; text-align: right !important; }
+        .team-table .name-col { width: 28%; text-align: left !important; padding-left: 6px !important; }
+        .team-table .peak-col { width: 13%; }
+        .team-table .curr-col { width: 13%; }
+        .team-table .main-col { width: 16%; }
+        .team-table .hope-col { width: 18%; }
+        .team-table .amount-col { width: 14%; text-align: right !important; padding-right: 6px !important; }
         .team-row td {
-            padding: 5px 6px;
+            padding: 4px 3px;
             border-bottom: 1px solid #f3f4f6;
             color: #374151;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 10px;
         }
-        .team-row .name-cell { font-weight: 700; }
-        .team-row .tier-cell, .team-row .lane-cell { text-align: center; color: #6b7280; }
-        .team-row .amount-cell { text-align: right; color: #059669; font-weight: 800; }
+        .team-row .name-cell {
+            font-weight: 700;
+            text-align: left;
+            padding-left: 6px;
+            font-size: 11px;
+        }
+        .team-row .peak-cell, .team-row .curr-cell { color: #6b7280; font-weight: 700; }
+        .team-row .main-cell { color: #92400e; font-weight: 700; }
+        .team-row .hope-cell { color: #5b21b6; }
+        .team-row .amount-cell { text-align: right; color: #059669; font-weight: 800; padding-right: 6px; }
         .team-row.leader-row { background: #fef3c7; }
         .team-row.leader-row .name-cell { color: #92400e; }
         .team-row.leader-row .amount-cell.leader-pt { color: #d97706; }
@@ -764,11 +800,18 @@
                 const isHighest = bidderTeam === t.team_index;
                 const isMyTeam = t.team_index === myTeam.team_index;
                 const memberSlots = Math.max(0, teamSlotsCount - 1);
-                const leaderDetail = findMemberDetails(t.leader_name);
+                const ld = findMemberDetails(t.leader_name);
+                const lNick = ld ? ld.nick : t.leader_name;
+                const lPeak = ld && ld.peakTier ? ld.peakTier : '-';
+                const lCurr = ld && ld.currentTier ? ld.currentTier : '-';
+                const lMain = ld && ld.mainLanes && ld.mainLanes.length > 0 ? ld.mainLanes.join(',') : '-';
+                const lHope = ld && ld.hopeLanes && ld.hopeLanes.length > 0 ? ld.hopeLanes.join(',') : '-';
                 const leaderRow = `<tr class="team-row leader-row">
-                    <td class="name-cell">👑 ${escapeHtml(leaderDetail ? leaderDetail.nick : t.leader_name)}</td>
-                    <td class="tier-cell">${leaderDetail && leaderDetail.peakTier ? escapeHtml(leaderDetail.peakTier) : '-'}</td>
-                    <td class="lane-cell">${leaderDetail && leaderDetail.mainLanes && leaderDetail.mainLanes.length > 0 ? escapeHtml(leaderDetail.mainLanes.join(',')) : '-'}</td>
+                    <td class="name-cell" title="${escapeHtml(lNick)}">👑 ${escapeHtml(lNick)}</td>
+                    <td class="peak-cell">${escapeHtml(lPeak)}</td>
+                    <td class="curr-cell">${escapeHtml(lCurr)}</td>
+                    <td class="main-cell" title="${escapeHtml(lMain)}">${escapeHtml(lMain)}</td>
+                    <td class="hope-cell" title="${escapeHtml(lHope)}">${escapeHtml(lHope)}</td>
                     <td class="amount-cell leader-pt">${t.leader_score || 0}점</td>
                 </tr>`;
                 let memberRows = '';
@@ -776,17 +819,22 @@
                     const m = myMembers[i];
                     if (m) {
                         const det = findMemberDetails(m.member_name);
-                        const peakStr = det && det.peakTier ? escapeHtml(det.peakTier) : '-';
-                        const mainStr = det && det.mainLanes && det.mainLanes.length > 0 ? escapeHtml(det.mainLanes.join(',')) : '-';
+                        const nick = det ? det.nick : m.member_name;
+                        const peak = det && det.peakTier ? det.peakTier : '-';
+                        const curr = det && det.currentTier ? det.currentTier : '-';
+                        const main = det && det.mainLanes && det.mainLanes.length > 0 ? det.mainLanes.join(',') : '-';
+                        const hope = det && det.hopeLanes && det.hopeLanes.length > 0 ? det.hopeLanes.join(',') : '-';
                         memberRows += `<tr class="team-row">
-                            <td class="name-cell">${escapeHtml(det ? det.nick : m.member_name)}</td>
-                            <td class="tier-cell">${peakStr}</td>
-                            <td class="lane-cell">${mainStr}</td>
+                            <td class="name-cell" title="${escapeHtml(nick)}">${escapeHtml(nick)}</td>
+                            <td class="peak-cell">${escapeHtml(peak)}</td>
+                            <td class="curr-cell">${escapeHtml(curr)}</td>
+                            <td class="main-cell" title="${escapeHtml(main)}">${escapeHtml(main)}</td>
+                            <td class="hope-cell" title="${escapeHtml(hope)}">${escapeHtml(hope)}</td>
                             <td class="amount-cell">${m.final_amount}P</td>
                         </tr>`;
                     } else {
                         memberRows += `<tr class="team-row empty-row">
-                            <td colspan="4" class="empty-cell">(빈 자리)</td>
+                            <td colspan="6" class="empty-cell">(빈 자리)</td>
                         </tr>`;
                     }
                 }
@@ -799,8 +847,10 @@
                         <thead>
                             <tr>
                                 <th class="name-col">닉네임</th>
-                                <th class="tier-col">최고</th>
-                                <th class="lane-col">주</th>
+                                <th class="peak-col">최고</th>
+                                <th class="curr-col">현재</th>
+                                <th class="main-col">주</th>
+                                <th class="hope-col">희망</th>
                                 <th class="amount-col">금액</th>
                             </tr>
                         </thead>
@@ -838,10 +888,7 @@
                 if (remaining.length === 0) {
                     remEl.innerHTML = '<div class="pool-empty">남은 멤버 없음</div>';
                 } else {
-                    remEl.innerHTML = remaining.map(m => `<div class="pool-item">
-                        <span class="name-text">${escapeHtml(getDisplayName(m.name))}</span>
-                        ${m.score != null && m.score !== '' ? `<span class="score-pill">${m.score}</span>` : ''}
-                    </div>`).join('');
+                    remEl.innerHTML = remaining.map(m => buildPoolItemHtml(m, false)).join('');
                 }
             }
             document.getElementById('remainingCount').innerText = '(' + remaining.length + ')';
@@ -853,13 +900,33 @@
                 } else if (rejectedArr.length === 0) {
                     rejEl.innerHTML = '<div class="pool-empty">유찰 없음</div>';
                 } else {
-                    rejEl.innerHTML = rejectedArr.map(m => `<div class="pool-item rejected">
-                        <span class="name-text">${escapeHtml(getDisplayName(m.name))}</span>
-                        ${m.score != null && m.score !== '' ? `<span class="score-pill">${m.score}</span>` : ''}
-                    </div>`).join('');
+                    rejEl.innerHTML = rejectedArr.map(m => buildPoolItemHtml(m, true)).join('');
                 }
             }
             document.getElementById('rejectedCount').innerText = '(' + rejectedArr.length + ')';
+        }
+
+        function buildPoolItemHtml(m, isRejected) {
+            if (!m || !m.name) return '';
+            const det = findMemberDetails(m.name);
+            const nick = det && det.nick ? det.nick : (m.nick || getDisplayName(m.name));
+            const peak = det && det.peakTier ? det.peakTier : (m.peakTier || '');
+            const curr = det && det.currentTier ? det.currentTier : (m.currentTier || '');
+            const main = det && det.mainLanes && det.mainLanes.length > 0 ? det.mainLanes : (m.mainLanes || []);
+            const hope = det && det.hopeLanes && det.hopeLanes.length > 0 ? det.hopeLanes : (m.hopeLanes || []);
+            const tierStr = peak && curr && peak !== curr ? peak + '/' + curr : (peak || curr || '');
+            const mainStr = main.length > 0 ? main.join(',') : '';
+            const hopeStr = hope.length > 0 ? hope.join(',') : '';
+            return `<div class="pool-item ${isRejected ? 'rejected' : ''}">
+                <div class="pool-item-top">
+                    <span class="name-text">${escapeHtml(nick)}</span>
+                    ${tierStr ? `<span class="pool-tier">${escapeHtml(tierStr)}</span>` : ''}
+                </div>
+                ${(mainStr || hopeStr) ? `<div class="pool-item-bot">
+                    ${mainStr ? `<span class="pool-lane main">주 ${escapeHtml(mainStr)}</span>` : ''}
+                    ${hopeStr ? `<span class="pool-lane hope">희 ${escapeHtml(hopeStr)}</span>` : ''}
+                </div>` : ''}
+            </div>`;
         }
 
         async function placeBidQuick(addAmount) {
