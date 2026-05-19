@@ -141,29 +141,29 @@
             margin-bottom: 8px;
         }
         .member-name-huge {
-            font-size: 42px;
+            font-size: 28px;
             font-weight: 800;
             color: #1f2937;
             line-height: 1.1;
-            margin: 8px 0;
+            margin: 4px 0;
         }
-        .auction-stage.previewing .member-name-huge { font-size: 56px; color: #5b21b6; }
+        .auction-stage.previewing .member-name-huge { font-size: 38px; color: #5b21b6; }
         .member-tag {
-            font-size: 13px;
+            font-size: 12px;
             color: #6b7280;
             font-weight: 700;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
         .member-tier-row {
             display: flex;
             justify-content: center;
             gap: 8px;
-            margin: 6px 0;
+            margin: 8px 0;
         }
         .tier-pill {
-            padding: 3px 11px;
-            border-radius: 11px;
-            font-size: 12px;
+            padding: 7px 16px;
+            border-radius: 13px;
+            font-size: 15px;
             font-weight: 800;
             color: #fff;
         }
@@ -173,28 +173,30 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            margin-top: 6px;
+            margin-top: 8px;
             align-items: center;
         }
         .lane-group {
             display: flex;
-            gap: 4px;
+            gap: 5px;
             align-items: center;
+            justify-content: center;
         }
         .lane-label {
-            font-size: 11px;
-            color: #6b7280;
-            font-weight: 700;
-            min-width: 30px;
+            font-size: 12px;
+            color: #4b5563;
+            font-weight: 800;
+            min-width: 40px;
+            text-align: right;
         }
         .lane-pill {
-            padding: 2px 9px;
-            border-radius: 9px;
-            font-size: 11px;
-            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 11px;
+            font-size: 14px;
+            font-weight: 800;
         }
-        .lane-pill.main { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
-        .lane-pill.hope { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
+        .lane-pill.main { background: #fef3c7; color: #92400e; border: 2px solid #fbbf24; }
+        .lane-pill.hope { background: #ede9fe; color: #5b21b6; border: 2px solid #a78bfa; }
         .bid-info-box {
             background: rgba(255,255,255,0.7);
             padding: 12px;
@@ -305,61 +307,114 @@
             padding: 10px 12px;
             background: #fff;
         }
-        .team-card.my-team { background: #ede9fe; border-color: #8b5cf6; }
+        .team-card.my-team { background: #ede9fe; border-color: #8b5cf6; box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15); }
         .team-card.highest { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; }
         .team-card-head {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             padding-bottom: 6px;
-            border-bottom: 1px dashed #d1d5db;
+            border-bottom: 2px solid #e5e7eb;
         }
-        .team-card-title { font-size: 13px; font-weight: 800; color: #1f2937; }
+        .team-card-title { font-size: 14px; font-weight: 800; color: #1f2937; }
         .team-card-points {
             background: #10b981;
             color: #fff;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 800;
-            padding: 2px 8px;
+            padding: 3px 10px;
             border-radius: 10px;
         }
         .team-card.highest .team-card-points { background: #f59e0b; }
-        .team-members-list { font-size: 11px; }
-        /* 팀 멤버 = 풀과 동일 스타일 */
-        .team-member-item {
-            background: #f3f4f6;
-            border-radius: 6px;
-            padding: 5px 9px;
-            margin-bottom: 3px;
+        .team-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 11px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-            overflow: hidden;
         }
-        .team-member-item.leader { background: #fef3c7; color: #92400e; }
-        .team-member-item.empty { background: #fff; border: 1px dashed #d1d5db; color: #d1d5db; font-style: italic; }
-        .team-member-item .name {
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            min-width: 0;
-        }
-        .team-member-item .amount-pill {
-            background: #10b981;
-            color: #fff;
+        .team-table th {
+            background: #f9fafb;
+            padding: 5px 6px;
+            text-align: left;
             font-size: 10px;
+            color: #6b7280;
             font-weight: 800;
-            padding: 1px 7px;
-            border-radius: 9px;
-            white-space: nowrap;
-            flex-shrink: 0;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e5e7eb;
         }
-        .team-member-item.leader .amount-pill { background: #f59e0b; }
+        .team-table .name-col { width: 38%; }
+        .team-table .tier-col { width: 18%; text-align: center !important; }
+        .team-table .lane-col { width: 22%; text-align: center !important; }
+        .team-table .amount-col { width: 22%; text-align: right !important; }
+        .team-row td {
+            padding: 5px 6px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
+        }
+        .team-row .name-cell { font-weight: 700; }
+        .team-row .tier-cell, .team-row .lane-cell { text-align: center; color: #6b7280; }
+        .team-row .amount-cell { text-align: right; color: #059669; font-weight: 800; }
+        .team-row.leader-row { background: #fef3c7; }
+        .team-row.leader-row .name-cell { color: #92400e; }
+        .team-row.leader-row .amount-cell.leader-pt { color: #d97706; }
+        .team-row.empty-row .empty-cell {
+            text-align: center;
+            color: #d1d5db;
+            font-style: italic;
+            padding: 5px;
+        }
+
+        /* 포인트 현황 카드 — 상단 강조 */
+        .points-board {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            color: #fff;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+        }
+        .points-board-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .points-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 6px;
+        }
+        .points-cell {
+            background: rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 8px 10px;
+            text-align: center;
+            border: 2px solid transparent;
+        }
+        .points-cell.mine {
+            background: linear-gradient(135deg, #6366f1, #4338ca);
+            border-color: #818cf8;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+        .points-cell .team-label {
+            font-size: 11px;
+            color: #cbd5e1;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .points-cell.mine .team-label { color: #e0e7ff; }
+        .points-cell .point-num {
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .points-cell .point-unit {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 700;
+        }
 
         .toast-msg {
             position: fixed;
@@ -539,6 +594,7 @@
         function renderMain() {
             renderHeader();
             const content = `
+                <div id="pointsBoard"></div>
                 <div class="main-layout">
                     <div class="left-col">
                         <div class="card">
@@ -575,10 +631,27 @@
                     </div>
                 </div>`;
             document.getElementById('mainContent').innerHTML = content;
+            renderPointsBoard();
             renderStage();
             renderMyBidArea();
             renderTeams();
             renderPools();
+        }
+
+        function renderPointsBoard() {
+            const wrap = document.getElementById('pointsBoard');
+            if (!wrap) return;
+            const cells = allTeams.map(t => {
+                const isMine = t.team_index === myTeam.team_index;
+                return `<div class="points-cell ${isMine ? 'mine' : ''}">
+                    <div class="team-label">${t.team_index}팀${isMine ? ' (나)' : ''}</div>
+                    <div><span class="point-num">${t.auction_points}</span><span class="point-unit">P</span></div>
+                </div>`;
+            }).join('');
+            wrap.innerHTML = `<div class="points-board">
+                <div class="points-board-title">💰 팀별 남은 포인트</div>
+                <div class="points-grid">${cells}</div>
+            </div>`;
         }
 
         function renderStage() {
@@ -691,18 +764,30 @@
                 const isHighest = bidderTeam === t.team_index;
                 const isMyTeam = t.team_index === myTeam.team_index;
                 const memberSlots = Math.max(0, teamSlotsCount - 1);
-                let memberHtml = '';
+                const leaderDetail = findMemberDetails(t.leader_name);
+                const leaderRow = `<tr class="team-row leader-row">
+                    <td class="name-cell">👑 ${escapeHtml(leaderDetail ? leaderDetail.nick : t.leader_name)}</td>
+                    <td class="tier-cell">${leaderDetail && leaderDetail.peakTier ? escapeHtml(leaderDetail.peakTier) : '-'}</td>
+                    <td class="lane-cell">${leaderDetail && leaderDetail.mainLanes && leaderDetail.mainLanes.length > 0 ? escapeHtml(leaderDetail.mainLanes.join(',')) : '-'}</td>
+                    <td class="amount-cell leader-pt">${t.leader_score || 0}점</td>
+                </tr>`;
+                let memberRows = '';
                 for (let i = 0; i < memberSlots; i++) {
                     const m = myMembers[i];
                     if (m) {
-                        memberHtml += `<div class="team-member-item">
-                            <span class="name">${escapeHtml(getDisplayName(m.member_name))}</span>
-                            <span class="amount-pill">${m.final_amount}P</span>
-                        </div>`;
+                        const det = findMemberDetails(m.member_name);
+                        const peakStr = det && det.peakTier ? escapeHtml(det.peakTier) : '-';
+                        const mainStr = det && det.mainLanes && det.mainLanes.length > 0 ? escapeHtml(det.mainLanes.join(',')) : '-';
+                        memberRows += `<tr class="team-row">
+                            <td class="name-cell">${escapeHtml(det ? det.nick : m.member_name)}</td>
+                            <td class="tier-cell">${peakStr}</td>
+                            <td class="lane-cell">${mainStr}</td>
+                            <td class="amount-cell">${m.final_amount}P</td>
+                        </tr>`;
                     } else {
-                        memberHtml += `<div class="team-member-item empty">
-                            <span class="name">(빈 자리)</span>
-                        </div>`;
+                        memberRows += `<tr class="team-row empty-row">
+                            <td colspan="4" class="empty-cell">(빈 자리)</td>
+                        </tr>`;
                     }
                 }
                 return `<div class="team-card ${isHighest ? 'highest' : ''} ${isMyTeam ? 'my-team' : ''}">
@@ -710,13 +795,17 @@
                         <span class="team-card-title">${t.team_index}팀${isMyTeam ? ' (나)' : ''}</span>
                         <span class="team-card-points">💰 ${t.auction_points}P</span>
                     </div>
-                    <div class="team-members-list">
-                        <div class="team-member-item leader">
-                            <span class="name">👑 ${escapeHtml(t.leader_name)}</span>
-                            <span class="amount-pill">${t.leader_score || 0}점</span>
-                        </div>
-                        ${memberHtml}
-                    </div>
+                    <table class="team-table">
+                        <thead>
+                            <tr>
+                                <th class="name-col">닉네임</th>
+                                <th class="tier-col">최고</th>
+                                <th class="lane-col">주</th>
+                                <th class="amount-col">금액</th>
+                            </tr>
+                        </thead>
+                        <tbody>${leaderRow}${memberRows}</tbody>
+                    </table>
                 </div>`;
             }).join('');
             document.getElementById('soldCount').innerText = '(' + auctionResults.length + '명)';
@@ -841,6 +930,7 @@
                     const idx = allTeams.findIndex(t => t.id === payload.new.id);
                     if (idx !== -1) allTeams[idx] = payload.new;
                     if (payload.new.team_index === myTeam.team_index) myTeam = payload.new;
+                    renderPointsBoard();
                     renderTeams();
                     renderMyBidArea();
                 })
