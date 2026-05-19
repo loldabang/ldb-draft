@@ -3,244 +3,343 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>경매 - 롤다방 내전 드래프트</title>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>경매 — 롤다방 드래프트</title>
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
     <link rel="stylesheet" href="../../draft-common.css">
     <style>
-        .auction-status-card {
+        body { padding: 16px 12px 70px; }
+        .page-wrap { max-width: 1300px; margin: 0 auto; }
+        .leader-header { margin-bottom: 12px; }
+        .leader-badge {
             background: linear-gradient(135deg, #fef3c7, #fde68a);
-            padding: 20px 16px;
-            border-radius: 14px;
-            margin-bottom: 16px;
-            text-align: center;
-            border: 2px solid #f59e0b;
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
-        }
-        .auction-status-card.waiting {
-            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-            border-color: #9ca3af;
-        }
-        .auction-status-card.sold {
-            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-            border-color: #10b981;
-        }
-        .auction-status-title {
-            font-size: 14px;
+            border: 1px solid #fbbf24;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-weight: 800;
             color: #92400e;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .step-badge {
+            background: linear-gradient(135deg, #ddd6fe, #c4b5fd);
+            border: 1px solid #a78bfa;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-weight: 800;
+            color: #5b21b6;
+            display: inline-block;
+        }
+        .round-pill {
+            display: inline-block;
+            background: #4338ca;
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+        .round-pill.r2 { background: #f59e0b; }
+
+        .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        /* 메인 3분할 */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 220px 1fr 280px;
+            gap: 10px;
+        }
+        @media (max-width: 1000px) { .main-layout { grid-template-columns: 1fr; } }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #4338ca;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .section-title .count { color: #6b7280; font-weight: 700; }
+
+        .pool-list { max-height: 260px; overflow-y: auto; }
+        .pool-list.small { max-height: 130px; font-size: 11px; }
+        .pool-item {
+            background: #f3f4f6;
+            border-radius: 6px;
+            padding: 5px 9px;
+            margin-bottom: 3px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .pool-item.rejected { background: #fef2f2; color: #991b1b; }
+        .pool-empty {
+            text-align: center;
+            color: #9ca3af;
+            padding: 14px 0;
+            font-size: 11px;
+            font-style: italic;
+        }
+        .score-pill {
+            background: #6366f1;
+            color: #fff;
+            font-size: 10px;
             font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 8px;
+        }
+
+        /* 중앙 — 경매 진행 */
+        .auction-stage {
+            padding: 24px 16px;
+            border-radius: 12px;
+            text-align: center;
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .auction-stage.waiting {
+            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+            border: 2px solid #9ca3af;
+        }
+        .auction-stage.previewing {
+            background: linear-gradient(135deg, #ede9fe, #c4b5fd);
+            border: 2px solid #8b5cf6;
+            animation: previewPulse 0.6s ease-in-out;
+        }
+        @keyframes previewPulse {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .auction-stage.bidding {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 2px solid #f59e0b;
+        }
+        .auction-stage.done {
+            background: linear-gradient(135deg, #ddd6fe, #c4b5fd);
+            border: 2px solid #a78bfa;
+        }
+        .stage-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             margin-bottom: 8px;
         }
-        .auction-status-card.waiting .auction-status-title { color: #6b7280; }
-        .auction-status-card.sold .auction-status-title { color: #065f46; }
-        .auction-member-name {
-            font-size: 26px;
+        .member-name-huge {
+            font-size: 42px;
             font-weight: 800;
             color: #1f2937;
             margin: 8px 0;
+            line-height: 1.1;
         }
-        .auction-member-score {
+        .auction-stage.previewing .member-name-huge {
+            font-size: 56px;
+            color: #5b21b6;
+        }
+        .member-score-pill {
             display: inline-block;
             background: #6366f1;
             color: #fff;
             font-size: 14px;
-            font-weight: 700;
+            font-weight: 800;
             padding: 4px 14px;
-            border-radius: 12px;
-            margin: 4px 0;
+            border-radius: 14px;
+            margin-top: 4px;
         }
-        .auction-current-bid {
-            background: rgba(255,255,255,0.6);
+        .preview-countdown {
+            font-size: 56px;
+            font-weight: 800;
+            color: #5b21b6;
+            margin-top: 14px;
+            line-height: 1;
+        }
+        .bid-info-box {
+            background: rgba(255,255,255,0.7);
             padding: 12px;
             border-radius: 10px;
-            margin-top: 12px;
+            margin-top: 14px;
+            width: 100%;
+            max-width: 360px;
         }
-        .auction-current-bid-label {
-            font-size: 12px;
-            color: #6b7280;
-            font-weight: 700;
-        }
-        .auction-current-bid-amount {
-            font-size: 32px;
+        .bid-amount-huge {
+            font-size: 42px;
             font-weight: 800;
             color: #dc2626;
-            margin: 4px 0;
+            line-height: 1;
         }
-        .auction-current-bidder {
+        .bidder-info {
             font-size: 13px;
-            color: #4b5563;
-            font-weight: 700;
+            font-weight: 800;
+            color: #374151;
         }
-        .auction-current-bidder.mine {
+        .bidder-info.mine {
             color: #059669;
-            font-weight: 800;
-        }
-        .auction-timer {
-            display: inline-block;
             font-size: 14px;
-            font-weight: 800;
-            color: #dc2626;
+        }
+        .timer-pill {
+            display: inline-block;
+            margin-top: 10px;
             background: #fff;
-            padding: 4px 14px;
-            border-radius: 20px;
-            margin-top: 8px;
             border: 2px solid #fca5a5;
+            color: #dc2626;
+            padding: 6px 18px;
+            border-radius: 18px;
+            font-size: 18px;
+            font-weight: 800;
         }
-        .auction-timer.warning {
-            animation: blinkTimer 0.5s ease-in-out infinite;
+        .timer-pill.warning {
             background: #fef2f2;
+            animation: tBlink 0.5s ease-in-out infinite;
         }
-        @keyframes blinkTimer {
+        @keyframes tBlink {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.15); }
+            50% { transform: scale(1.13); }
         }
 
-        /* 내 정보 */
-        .my-info-card {
-            background: #fff;
-            border: 2px solid #6366f1;
-            border-radius: 12px;
-            padding: 14px 16px;
-            margin-bottom: 14px;
-        }
+        /* 내 정보 + 입찰 영역 */
+        .my-bid-card { background: #f0f9ff; border: 2px solid #38bdf8; }
         .my-info-row {
             display: flex;
             justify-content: space-between;
-            font-size: 14px;
-            margin-bottom: 4px;
+            font-size: 13px;
+            padding: 4px 0;
         }
-        .my-info-row strong { color: #4338ca; }
+        .my-info-row strong { color: #0369a1; }
         .my-info-row.points {
             font-size: 18px;
             font-weight: 800;
             color: #059669;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed #e0e7ff;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed #bae6fd;
         }
-
-        /* 입찰 버튼 영역 */
         .bid-area {
-            background: #fff;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed #bae6fd;
         }
-        .bid-area.disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-        .bid-area-title {
-            font-size: 14px;
-            font-weight: 800;
-            color: #1f2937;
-            margin-bottom: 10px;
-            text-align: center;
-        }
+        .bid-area.disabled { opacity: 0.5; pointer-events: none; }
         .bid-quick-row {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 6px;
+            margin-bottom: 8px;
         }
         .bid-quick-btn {
-            padding: 14px 0;
-            font-size: 16px;
+            padding: 12px 0;
+            font-size: 15px;
             font-weight: 800;
             border: 2px solid #6366f1;
             background: #fff;
             color: #4338ca;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.15s;
             font-family: 'Pretendard', sans-serif;
         }
         .bid-quick-btn:hover:not(:disabled) {
             background: #6366f1;
             color: #fff;
-            transform: translateY(-1px);
         }
-        .bid-quick-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        .bid-custom-row {
-            display: flex;
-            gap: 8px;
-        }
+        .bid-quick-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .bid-custom-row { display: flex; gap: 6px; }
         .bid-custom-input {
             flex: 1;
-            padding: 12px;
+            padding: 10px;
             border: 2px solid #e5e7eb;
             border-radius: 8px;
-            font-size: 15px;
-            font-family: 'Pretendard', sans-serif;
+            font-size: 14px;
             text-align: center;
+            font-family: 'Pretendard', sans-serif;
             outline: none;
         }
         .bid-custom-input:focus { border-color: #6366f1; }
         .bid-custom-btn {
-            padding: 12px 18px;
+            padding: 10px 16px;
             background: #4338ca;
             color: #fff;
             border: none;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 800;
             cursor: pointer;
             font-family: 'Pretendard', sans-serif;
         }
-        .bid-custom-btn:hover { background: #3730a3; }
-        .bid-custom-btn:disabled { background: #9ca3af; cursor: not-allowed; }
-
-        /* 다른 팀 / 낙찰 결과 */
-        .other-teams-card {
-            margin-top: 14px;
+        .bid-msg {
+            margin-top: 8px;
+            text-align: center;
+            min-height: 18px;
+            font-size: 12px;
         }
-        .other-team-row {
+        .bid-msg.error { color: #dc2626; }
+        .bid-msg.success { color: #059669; }
+
+        /* 오른쪽 — 팀별 현황 */
+        .team-cards { display: grid; gap: 6px; }
+        .team-card {
+            border: 1.5px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: #fff;
+        }
+        .team-card.my-team { background: #ede9fe; border-color: #a78bfa; }
+        .team-card.highest { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; }
+        .team-card-head {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-bottom: 6px;
-            font-size: 13px;
-        }
-        .other-team-row.my-team {
-            background: #ede9fe;
-            border: 1px solid #c4b5fd;
-        }
-        .other-team-name { font-weight: 700; }
-        .other-team-points {
-            color: #059669;
-            font-weight: 800;
-        }
-
-        .next-member-preview {
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px dashed #e5e7eb;
             font-size: 12px;
-            color: #6b7280;
-            margin-top: 10px;
-            padding: 8px;
-            background: #f3f4f6;
-            border-radius: 6px;
-            text-align: center;
         }
-        .next-member-preview strong { color: #4338ca; }
+        .team-card-title { font-weight: 800; color: #1f2937; }
+        .team-card-points {
+            background: #10b981;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 9px;
+        }
+        .team-card.highest .team-card-points { background: #f59e0b; }
+        .team-members-list { font-size: 10px; }
+        .team-member-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 1px 0;
+            color: #4b5563;
+        }
+        .team-member-item.leader { color: #92400e; font-weight: 700; }
+        .team-member-amount { color: #059669; font-weight: 700; }
 
-        .auction-msg-area {
-            margin-top: 12px;
-            min-height: 24px;
-            text-align: center;
-        }
-        .auction-msg {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 6px;
+        .toast-msg {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 8px;
             font-size: 13px;
             font-weight: 700;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
         }
-        .auction-msg.error { background: #fef2f2; color: #dc2626; }
-        .auction-msg.success { background: #ecfdf5; color: #059669; }
+        .toast-msg.show { opacity: 1; }
     </style>
 </head>
 <body>
@@ -249,360 +348,438 @@
         <div id="mainContent"></div>
     </div>
 
+    <div id="toastMsg" class="toast-msg"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../../draft-common.js"></script>
     <script src="../../auction-common.js"></script>
     <script>
+        'use strict';
+
         let currentRoom = null;
-        let myTeam = null;          // teams 행 (내 팀)
-        let allTeams = [];          // 모든 팀
-        let auctionResults = [];    // 낙찰 결과
+        let myTeam = null;
+        let allTeams = [];
+        let auctionResults = [];
         let timerInterval = null;
+        let previewInterval = null;
+        let _previewStartTime = null;
         let realtimeSubs = [];
+
+        function showToast(msg, ms) {
+            const t = document.getElementById('toastMsg');
+            if (!t) return;
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), ms || 2200);
+        }
 
         async function init() {
             const client = initSupabase();
             if (!client) {
-                $('mainContent').innerHTML = '<div class="card">Supabase 설정 오류</div>';
+                document.body.innerHTML = '<div class="card">Supabase 설정 오류</div>';
                 return;
             }
-
-            // 1. 방 로드
             const room = await loadRoom();
             if (!room) {
-                $('mainContent').innerHTML = '<div class="card">방을 찾을 수 없습니다.</div>';
+                document.body.innerHTML = '<div class="card">방을 찾을 수 없습니다.</div>';
                 return;
             }
             currentRoom = room;
 
-            // 2. teams 로드
             const { data: teams } = await client
-                .from('teams')
-                .select('*')
-                .eq('room_code', room.room_code)
-                .order('team_index');
+                .from('teams').select('*')
+                .eq('room_code', room.room_code).order('team_index');
             allTeams = teams || [];
 
-            // 3. 내 팀 찾기 — leader_token 매칭
             myTeam = allTeams.find(t => t.leader_token === TOKEN);
             if (!myTeam) {
-                $('mainContent').innerHTML = '<div class="card">팀 정보를 찾을 수 없습니다.</div>';
+                document.body.innerHTML = '<div class="card">팀 정보를 찾을 수 없습니다.</div>';
                 return;
             }
 
-            // 단계 P-4: 팀장 확인 화면 — 처음 접속한 경우만
+            // 팀장 확인 화면 (첫 접속만)
             const claimKey = 'loldabang_auctionClaim_' + currentRoom.room_code + '_' + myTeam.team_index;
-            const alreadyConfirmed = localStorage.getItem(claimKey) === '1';
-            if (!alreadyConfirmed) {
+            if (localStorage.getItem(claimKey) !== '1') {
                 const ok = await _showClaimConfirmScreen(myTeam.leader_name);
                 if (!ok) {
-                    document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
+                    document.body.innerHTML = `<div style="padding:60px; text-align:center;">
                         <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
                         <h2 style="font-size:18px; margin-bottom:10px; color:#dc2626;">접속이 거부되었습니다</h2>
-                        <p style="font-size:13px; color:#6b7280;">본인이 아니라고 응답하셨습니다.<br>관리자에게 문의해주세요.</p>
+                        <p style="font-size:13px; color:#6b7280;">본인이 아니라고 응답하셨습니다.</p>
                     </div>`;
                     return;
                 }
                 localStorage.setItem(claimKey, '1');
             }
 
-            // 4. 낙찰 결과 로드 (auction-common.js)
             auctionResults = await loadAuctionResults(currentRoom.room_code);
 
-            // 5. 헤더 표시
             renderHeader();
-
-            // 6. 메인 렌더
             renderMain();
-
-            // 7. Realtime 구독
             subscribeRealtime();
-
-            // 8. 타이머 시작
             startTimer();
+
+            window.addEventListener('beforeunload', () => {
+                realtimeSubs.forEach(s => { try { s.unsubscribe(); } catch(e){} });
+                if (timerInterval) clearInterval(timerInterval);
+                if (previewInterval) clearInterval(previewInterval);
+            });
         }
 
         function renderHeader() {
-            const header = $('leaderHeader');
-            header.innerHTML = `<div class="leader-badge">
-                👑 ${myTeam.team_index}팀 팀장 (${escapeHtml(myTeam.leader_name)})
-            </div>
-            <div class="step-badge">⚔️ STEP: 경매 진행</div>`;
+            const round = currentRoom.auction_round || 1;
+            const roundPill = round === 1
+                ? '<span class="round-pill">1차</span>'
+                : '<span class="round-pill r2">유찰 경매</span>';
+            document.getElementById('leaderHeader').innerHTML = `
+                <span class="leader-badge">👑 ${myTeam.team_index}팀 — ${escapeHtml(myTeam.leader_name)}</span>
+                <span class="step-badge">⚔️ 경매 진행 중${roundPill}</span>`;
         }
 
         function renderMain() {
-            const content = $('mainContent');
+            const state = currentRoom.auction_state || 'waiting_for_call';
+            renderHeader();
+
+            // 3분할 레이아웃
+            const content = `
+                <div class="main-layout">
+                    <div class="left-col">
+                        <div class="card">
+                            <div class="section-title">
+                                <span>📋 남은 멤버</span>
+                                <span class="count" id="remainingCount">(0)</span>
+                            </div>
+                            <div id="remainingPool" class="pool-list"></div>
+                        </div>
+                        <div class="card">
+                            <div class="section-title">
+                                <span>🔄 유찰됨</span>
+                                <span class="count" id="rejectedCount">(0)</span>
+                            </div>
+                            <div id="rejectedPool" class="pool-list small"></div>
+                        </div>
+                    </div>
+                    <div class="center-col">
+                        <div class="card">
+                            <div id="auctionStage"></div>
+                        </div>
+                        <div class="card my-bid-card">
+                            <div id="myBidArea"></div>
+                        </div>
+                    </div>
+                    <div class="right-col">
+                        <div class="card">
+                            <div class="section-title">
+                                <span>📊 팀별 현황</span>
+                                <span class="count" id="soldCount">(0)</span>
+                            </div>
+                            <div id="teamCards" class="team-cards"></div>
+                        </div>
+                    </div>
+                </div>`;
+            document.getElementById('mainContent').innerHTML = content;
+            renderStage();
+            renderMyBidArea();
+            renderTeams();
+            renderPools();
+        }
+
+        function renderStage() {
+            const wrap = document.getElementById('auctionStage');
+            if (!wrap) return;
             const state = currentRoom.auction_state || 'waiting_for_call';
 
-            let html = '';
+            if (state === 'waiting_for_call' || state === 'sold' || state === 'rejected_pool_done') {
+                let extra = '';
+                if (state === 'rejected_pool_done') {
+                    extra = '<p style="font-size:14px; color:#dc2626; margin-top:8px;">1차 경매 종료. 관리자가 2차 진행 또는 수동 배정 중.</p>';
+                }
+                wrap.innerHTML = `<div class="auction-stage waiting">
+                    <div class="stage-title">⏳ 다음 멤버 호출 대기</div>
+                    <p style="font-size:13px; color:#6b7280;">관리자가 멤버를 호출하면 표시됩니다.</p>
+                    ${extra}
+                </div>`;
+            } else if (state === 'previewing') {
+                const previewSec = currentRoom.auction_preview_seconds || 2;
+                wrap.innerHTML = `<div class="auction-stage previewing">
+                    <div class="stage-title">👀 다음 경매 멤버</div>
+                    <div class="member-name-huge">${escapeHtml(currentRoom.current_member_name || '')}</div>
+                    <div class="member-score-pill">점수 ${currentRoom.current_member_score || 0}</div>
+                    <div class="preview-countdown" id="previewCountdown">${previewSec}</div>
+                </div>`;
+                startPreviewCountdown();
+            } else if (state === 'bidding') {
+                const currentBid = currentRoom.current_bid_amount || 0;
+                const bidderTeam = currentRoom.current_bid_team_index;
+                const bidder = allTeams.find(t => t.team_index === bidderTeam);
+                const isMine = bidderTeam === myTeam.team_index;
+                const mineClass = isMine ? 'mine' : '';
+                wrap.innerHTML = `<div class="auction-stage bidding">
+                    <div class="stage-title">🔥 입찰 진행 중</div>
+                    <div class="member-name-huge">${escapeHtml(currentRoom.current_member_name || '')}</div>
+                    <div class="member-score-pill">점수 ${currentRoom.current_member_score || 0}</div>
+                    <div class="bid-info-box">
+                        <div style="font-size:11px; color:#6b7280; font-weight:700;">현재 최고 입찰</div>
+                        <div class="bid-amount-huge">${currentBid}P</div>
+                        <div class="bidder-info ${mineClass}">
+                            ${bidder ? `${bidderTeam}팀 — ${escapeHtml(bidder.leader_name)}${isMine ? ' (나)' : ''}` : '아직 입찰 없음'}
+                        </div>
+                    </div>
+                    <div id="timerDisplay" class="timer-pill">⏱ ${currentRoom.auction_timer_seconds || 10}초</div>
+                </div>`;
+            } else if (state === 'done') {
+                wrap.innerHTML = `<div class="auction-stage done">
+                    <div class="stage-title">🎉 경매 종료</div>
+                    <p style="font-size:14px; color:#5b21b6; margin: 8px 0;">
+                        모든 경매가 완료되었습니다.<br>
+                        팀 구성을 확인해주세요.
+                    </p>
+                </div>`;
+            }
+        }
 
-            // 내 정보
-            html += `<div class="my-info-card">
-                <div class="my-info-row">
-                    <span>팀장</span>
-                    <strong>${escapeHtml(myTeam.leader_name)}</strong>
+        function renderMyBidArea() {
+            const area = document.getElementById('myBidArea');
+            if (!area) return;
+            const state = currentRoom.auction_state;
+            const currentBid = currentRoom.current_bid_amount || 0;
+            const bidderTeam = currentRoom.current_bid_team_index;
+            const isMyBid = bidderTeam === myTeam.team_index;
+            const minBid = currentBid + 1;
+            const myMembers = auctionResults.filter(r => r.team_index === myTeam.team_index);
+            const canBid = state === 'bidding' && !isMyBid;
+
+            area.innerHTML = `
+                <div style="font-weight:800; color:#0369a1; margin-bottom:8px; font-size:14px;">
+                    👑 내 팀 (${myTeam.team_index}팀)
                 </div>
                 <div class="my-info-row">
-                    <span>내 팀 멤버</span>
-                    <strong>${countMyMembers()}명</strong>
+                    <span>내 멤버</span>
+                    <strong>${myMembers.length + 1}명 (팀장 포함)</strong>
                 </div>
                 <div class="my-info-row points">
                     <span>💰 남은 포인트</span>
-                    <span>${myTeam.auction_points}</span>
+                    <span>${myTeam.auction_points}P</span>
                 </div>
-            </div>`;
+                <div class="bid-area ${canBid ? '' : 'disabled'}">
+                    <div style="font-weight:800; font-size:13px; margin-bottom:8px; text-align:center; color:#1f2937;">
+                        ${state !== 'bidding' ? '경매 진행 중이 아닙니다' :
+                          isMyBid ? '✓ 현재 내가 최고 입찰자' :
+                          `📢 입찰하기 (최소 ${minBid}P)`}
+                    </div>
+                    <div class="bid-quick-row">
+                        <button class="bid-quick-btn" onclick="placeBidQuick(1)" ${!canBid ? 'disabled' : ''}>+1</button>
+                        <button class="bid-quick-btn" onclick="placeBidQuick(5)" ${!canBid ? 'disabled' : ''}>+5</button>
+                        <button class="bid-quick-btn" onclick="placeBidQuick(10)" ${!canBid ? 'disabled' : ''}>+10</button>
+                    </div>
+                    <div class="bid-custom-row">
+                        <input type="number" id="bidCustomInput" class="bid-custom-input" placeholder="${minBid}" min="${minBid}" ${!canBid ? 'disabled' : ''}>
+                        <button class="bid-custom-btn" onclick="placeBidCustom()" ${!canBid ? 'disabled' : ''}>입찰</button>
+                    </div>
+                    <div class="bid-msg" id="bidMsg"></div>
+                </div>`;
 
-            // 상태별 메인 카드
-            if (state === 'waiting_for_call' || state === 'sold') {
-                html += renderWaitingState();
-            } else if (state === 'bidding') {
-                html += renderBiddingState();
-            } else if (state === 'done') {
-                html += renderDoneState();
-            }
-
-            // 다른 팀 현황
-            html += renderOtherTeams();
-
-            content.innerHTML = html;
-
-            // 이벤트 바인딩 (input enter)
-            const customInput = document.getElementById('bidCustomInput');
-            if (customInput) {
-                customInput.addEventListener('keydown', (e) => {
+            const inp = document.getElementById('bidCustomInput');
+            if (inp) {
+                inp.addEventListener('keydown', e => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         placeBidCustom();
                     }
                 });
+                inp.addEventListener('wheel', e => e.preventDefault(), { passive: false });
             }
         }
 
-        function renderWaitingState() {
-            const showNext = currentRoom.auction_show_next_member && currentRoom.auction_next_member;
-            let html = `<div class="auction-status-card waiting">
-                <div class="auction-status-title">⏳ 다음 멤버 호출 대기 중</div>
-                <p style="color: #6b7280; font-size: 13px; margin: 8px 0;">
-                    관리자가 다음 멤버를 호출하면 입찰이 시작됩니다.
-                </p>`;
-            if (showNext) {
-                html += `<div class="next-member-preview">
-                    다음 호출 예정: <strong>${escapeHtml(currentRoom.auction_next_member)}</strong>
-                </div>`;
-            }
-            html += `</div>`;
-            return html;
-        }
-
-        function renderBiddingState() {
-            const currentBid = currentRoom.current_bid_amount || 0;
-            const currentBidder = currentRoom.current_bid_team_index;
-            const isMyBid = currentBidder === myTeam.team_index;
-            const myBidderClass = isMyBid ? 'mine' : '';
-            const bidderName = currentBidder
-                ? (allTeams.find(t => t.team_index === currentBidder)?.leader_name || `${currentBidder}팀`)
-                : '없음';
-            const bidderLabel = isMyBid ? '👑 (나)' : (currentBidder ? `${currentBidder}팀` : '');
-
-            // 타이머 영역
-            const timerSeconds = currentRoom.auction_timer_seconds || 10;
-
-            let html = `<div class="auction-status-card">
-                <div class="auction-status-title">🔥 입찰 진행 중!</div>
-                <div class="auction-member-name">${escapeHtml(currentRoom.current_member_name || '')}</div>
-                <div class="auction-member-score">점수 ${currentRoom.current_member_score || 0}</div>
-                <div class="auction-current-bid">
-                    <div class="auction-current-bid-label">현재 최고 입찰</div>
-                    <div class="auction-current-bid-amount">${currentBid}</div>
-                    <div class="auction-current-bidder ${myBidderClass}">
-                        ${currentBidder ? '입찰자: ' + bidderLabel + ' (' + escapeHtml(bidderName) + ')' : '아직 입찰 없음'}
+        function renderTeams() {
+            const grid = document.getElementById('teamCards');
+            if (!grid) return;
+            const bidderTeam = currentRoom.current_bid_team_index;
+            grid.innerHTML = allTeams.map(t => {
+                const myMembers = auctionResults.filter(r => r.team_index === t.team_index);
+                const isHighest = bidderTeam === t.team_index;
+                const isMyTeam = t.team_index === myTeam.team_index;
+                return `<div class="team-card ${isHighest ? 'highest' : ''} ${isMyTeam ? 'my-team' : ''}">
+                    <div class="team-card-head">
+                        <span class="team-card-title">${t.team_index}팀${isMyTeam ? ' (나)' : ''}</span>
+                        <span class="team-card-points">💰 ${t.auction_points}P</span>
                     </div>
-                </div>
-                <div id="timerDisplay" class="auction-timer">⏱ ${timerSeconds}초</div>
-            </div>`;
-
-            // 입찰 영역
-            const isDisabled = isMyBid;
-            const disabledClass = isDisabled ? 'disabled' : '';
-            const minBid = currentBid + 1;
-
-            html += `<div class="bid-area ${disabledClass}" id="bidArea">
-                <div class="bid-area-title">
-                    ${isDisabled ? '✓ 현재 내가 최고 입찰자입니다' : `📢 입찰하기 (최소 ${minBid})`}
-                </div>
-                <div class="bid-quick-row">
-                    <button class="bid-quick-btn" onclick="placeBidQuick(1)" ${isDisabled ? 'disabled' : ''}>+1</button>
-                    <button class="bid-quick-btn" onclick="placeBidQuick(5)" ${isDisabled ? 'disabled' : ''}>+5</button>
-                    <button class="bid-quick-btn" onclick="placeBidQuick(10)" ${isDisabled ? 'disabled' : ''}>+10</button>
-                </div>
-                <div class="bid-custom-row">
-                    <input type="number" id="bidCustomInput" class="bid-custom-input" placeholder="금액 입력 (최소 ${minBid})" min="${minBid}">
-                    <button class="bid-custom-btn" onclick="placeBidCustom()" ${isDisabled ? 'disabled' : ''}>입찰</button>
-                </div>
-                <div class="auction-msg-area" id="bidMsgArea"></div>
-            </div>`;
-
-            return html;
-        }
-
-        function renderDoneState() {
-            return `<div class="auction-status-card sold">
-                <div class="auction-status-title">🎉 경매 종료</div>
-                <p style="color: #065f46; font-size: 14px; margin: 8px 0;">
-                    모든 멤버의 경매가 끝났습니다.<br>
-                    관리자가 결과를 정리 중입니다.
-                </p>
-            </div>`;
-        }
-
-        function renderOtherTeams() {
-            let html = `<div class="card other-teams-card" style="padding: 12px;">
-                <div style="font-size: 13px; font-weight: 800; color: #4338ca; margin-bottom: 8px;">📊 팀 현황</div>`;
-
-            allTeams.forEach(t => {
-                const isMyTeamRow = t.team_index === myTeam.team_index;
-                const memCount = countTeamMembers(t.team_index);
-                html += `<div class="other-team-row ${isMyTeamRow ? 'my-team' : ''}">
-                    <span class="other-team-name">${t.team_index}팀 (${escapeHtml(t.leader_name)})</span>
-                    <span>
-                        <span style="color:#6b7280; font-size:12px;">${memCount + 1}명</span>
-                        <span class="other-team-points" style="margin-left:8px;">💰 ${t.auction_points}</span>
-                    </span>
+                    <div class="team-members-list">
+                        <div class="team-member-item leader">
+                            <span>👑 ${escapeHtml(t.leader_name)}</span>
+                            <span>${t.leader_score || 0}점</span>
+                        </div>
+                        ${myMembers.map(m => `<div class="team-member-item">
+                            <span>${escapeHtml(m.member_name)}</span>
+                            <span class="team-member-amount">${m.final_amount}P</span>
+                        </div>`).join('')}
+                    </div>
                 </div>`;
+            }).join('');
+            document.getElementById('soldCount').innerText = '(' + auctionResults.length + '명)';
+        }
+
+        function renderPools() {
+            const calledArr = Array.isArray(currentRoom.auction_called_members) ? currentRoom.auction_called_members : [];
+            const calledNames = new Set();
+            calledArr.forEach(c => {
+                if (typeof c === 'string') calledNames.add(c);
+                else if (c && c.name) calledNames.add(c.name);
             });
-            html += `</div>`;
-            return html;
+            auctionResults.forEach(r => calledNames.add(r.member_name));
+
+            const rejectedArr = Array.isArray(currentRoom.auction_rejected_members) ? currentRoom.auction_rejected_members : [];
+            const rejectedNames = new Set(rejectedArr.map(r => r && r.name).filter(Boolean));
+            const membersArr = Array.isArray(currentRoom.members) ? currentRoom.members : [];
+            const round = currentRoom.auction_round || 1;
+
+            let remaining;
+            if (round === 1) {
+                remaining = membersArr.filter(m => m && m.name && !calledNames.has(m.name) && !rejectedNames.has(m.name));
+            } else {
+                const soldNames = new Set(auctionResults.map(r => r.member_name));
+                remaining = rejectedArr.filter(m => m && m.name && !soldNames.has(m.name));
+            }
+
+            const remEl = document.getElementById('remainingPool');
+            if (remEl) {
+                if (remaining.length === 0) {
+                    remEl.innerHTML = '<div class="pool-empty">남은 멤버 없음</div>';
+                } else {
+                    remEl.innerHTML = remaining.map(m => `<div class="pool-item">
+                        <span>${escapeHtml(m.name)}</span>
+                        ${m.score != null && m.score !== '' ? `<span class="score-pill">${m.score}</span>` : ''}
+                    </div>`).join('');
+                }
+            }
+            document.getElementById('remainingCount').innerText = '(' + remaining.length + ')';
+
+            const rejEl = document.getElementById('rejectedPool');
+            if (rejEl) {
+                if (round === 2) {
+                    rejEl.innerHTML = '<div class="pool-empty">2차 경매 진행 중</div>';
+                } else if (rejectedArr.length === 0) {
+                    rejEl.innerHTML = '<div class="pool-empty">유찰 없음</div>';
+                } else {
+                    rejEl.innerHTML = rejectedArr.map(m => `<div class="pool-item rejected">
+                        <span>${escapeHtml(m.name)}</span>
+                        ${m.score != null && m.score !== '' ? `<span class="score-pill">${m.score}</span>` : ''}
+                    </div>`).join('');
+                }
+            }
+            document.getElementById('rejectedCount').innerText = '(' + rejectedArr.length + ')';
         }
 
-        function countMyMembers() {
-            return auctionResults.filter(r => r.team_index === myTeam.team_index).length;
+        // ─── 예고 카운트다운 ─────────────────────────────────────────────
+        function startPreviewCountdown() {
+            if (previewInterval) clearInterval(previewInterval);
+            _previewStartTime = currentRoom.preview_started_at ? new Date(currentRoom.preview_started_at).getTime() : Date.now();
+            previewInterval = setInterval(tickPreview, 100);
         }
-        function countTeamMembers(teamIdx) {
-            return auctionResults.filter(r => r.team_index === teamIdx).length;
+        function tickPreview() {
+            const el = document.getElementById('previewCountdown');
+            if (!currentRoom || currentRoom.auction_state !== 'previewing') {
+                if (previewInterval) clearInterval(previewInterval);
+                return;
+            }
+            const previewSec = currentRoom.auction_preview_seconds || 2;
+            const elapsed = (Date.now() - _previewStartTime) / 1000;
+            const remaining = Math.max(0, previewSec - elapsed);
+            if (el) el.innerText = remaining.toFixed(1);
         }
 
-        // ─── 입찰 ─────────────────────────────────────────────────────────────
+        // ─── 입찰 ─────────────────────────────────────────────────────────
         async function placeBidQuick(addAmount) {
             const currentBid = currentRoom.current_bid_amount || 0;
-            const newAmount = currentBid + addAmount;
-            await placeBid(newAmount);
+            await placeBid(currentBid + addAmount);
         }
         async function placeBidCustom() {
             const inp = document.getElementById('bidCustomInput');
             if (!inp) return;
             const v = parseInt(inp.value, 10);
             if (isNaN(v) || v <= 0) {
-                showBidMsg('올바른 금액을 입력해주세요', 'error');
+                showBidMsg('금액을 입력하세요', 'error');
                 return;
             }
             await placeBid(v);
         }
-
         async function placeBid(amount) {
-            showBidMsg('입찰 중...', 'success');
             const r = await placeAuctionBid(currentRoom.room_code, TOKEN, amount);
             if (!r.success) {
                 showBidMsg(r.message || '입찰 실패', 'error');
                 return;
             }
-            showBidMsg('✅ 입찰 완료 (' + amount + ')', 'success');
+            showBidMsg('✅ 입찰 완료 (' + amount + 'P)', 'success');
             const inp = document.getElementById('bidCustomInput');
             if (inp) inp.value = '';
         }
-
         function showBidMsg(msg, type) {
-            const area = document.getElementById('bidMsgArea');
-            if (!area) return;
-            area.innerHTML = `<span class="auction-msg ${type}">${escapeHtml(msg)}</span>`;
-            setTimeout(() => { if (area) area.innerHTML = ''; }, 3000);
+            const el = document.getElementById('bidMsg');
+            if (!el) return;
+            el.className = 'bid-msg ' + type;
+            el.innerText = msg;
+            setTimeout(() => { if (el) el.innerText = ''; }, 3000);
         }
 
-        // ─── 타이머 ───────────────────────────────────────────────────────────
+        // ─── 타이머 ─────────────────────────────────────────────────────
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => updateTimerDisplay(), 200);
+            timerInterval = setInterval(tickTimer, 200);
         }
-        function updateTimerDisplay() {
-            const display = document.getElementById('timerDisplay');
-            if (!display || !currentRoom) return;
+        function tickTimer() {
+            const d = document.getElementById('timerDisplay');
+            if (!d || !currentRoom) return;
             if (currentRoom.auction_state !== 'bidding') return;
-
-            const remaining = computeAuctionTimerRemaining(
-                currentRoom.last_bid_at,
-                currentRoom.auction_timer_seconds
-            );
-            display.innerText = '⏱ ' + remaining.toFixed(1) + '초';
-            if (remaining <= 3) display.classList.add('warning');
-            else display.classList.remove('warning');
+            const remaining = computeAuctionTimerRemaining(currentRoom.last_bid_at, currentRoom.auction_timer_seconds);
+            d.innerText = '⏱ ' + remaining.toFixed(1) + '초';
+            if (remaining <= 3) d.classList.add('warning');
+            else d.classList.remove('warning');
         }
 
-        // ─── Realtime 구독 ────────────────────────────────────────────────────
+        // ─── Realtime ───────────────────────────────────────────────────
         function subscribeRealtime() {
             const client = initSupabase();
-            // rooms — auction_state, current_bid 변경 감지
-            const rcSub = client
-                .channel('auction-room-' + currentRoom.room_code)
+            realtimeSubs.push(client
+                .channel('a-team-room-' + currentRoom.room_code)
                 .on('postgres_changes', {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'rooms',
+                    event: 'UPDATE', schema: 'public', table: 'rooms',
                     filter: `room_code=eq.${currentRoom.room_code}`
-                }, async (payload) => {
+                }, (payload) => {
                     currentRoom = payload.new;
-                    // status가 done이거나 mode가 done이면 done.html로
-                    if (currentRoom.status === 'done' && currentRoom.auction_state === 'done') {
-                        goToDone();
-                        return;
-                    }
                     renderMain();
                 })
-                .subscribe();
-            realtimeSubs.push(rcSub);
-
-            // teams — auction_points 변경
-            const teamSub = client
-                .channel('auction-teams-' + currentRoom.room_code)
+                .subscribe()
+            );
+            realtimeSubs.push(client
+                .channel('a-team-teams-' + currentRoom.room_code)
                 .on('postgres_changes', {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'teams',
+                    event: 'UPDATE', schema: 'public', table: 'teams',
                     filter: `room_code=eq.${currentRoom.room_code}`
-                }, async (payload) => {
-                    const updated = payload.new;
-                    const idx = allTeams.findIndex(t => t.id === updated.id);
-                    if (idx !== -1) allTeams[idx] = updated;
-                    if (updated.team_index === myTeam.team_index) myTeam = updated;
-                    renderMain();
+                }, (payload) => {
+                    const idx = allTeams.findIndex(t => t.id === payload.new.id);
+                    if (idx !== -1) allTeams[idx] = payload.new;
+                    if (payload.new.team_index === myTeam.team_index) myTeam = payload.new;
+                    renderTeams();
+                    renderMyBidArea();
                 })
-                .subscribe();
-            realtimeSubs.push(teamSub);
-
-            // auction_results — 낙찰 발생
-            const resSub = client
-                .channel('auction-results-' + currentRoom.room_code)
+                .subscribe()
+            );
+            realtimeSubs.push(client
+                .channel('a-team-results-' + currentRoom.room_code)
                 .on('postgres_changes', {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'auction_results',
+                    event: 'INSERT', schema: 'public', table: 'auction_results',
                     filter: `room_code=eq.${currentRoom.room_code}`
-                }, async (payload) => {
+                }, (payload) => {
                     auctionResults.push(payload.new);
-                    renderMain();
+                    renderTeams();
+                    renderPools();
+                    renderMyBidArea();
                 })
-                .subscribe();
-            realtimeSubs.push(resSub);
+                .subscribe()
+            );
         }
 
-        function $(id) { return document.getElementById(id); }
-
-        // 시작
         init();
-
-        // 페이지 떠날 때 구독 해제
-        window.addEventListener('beforeunload', () => {
-            realtimeSubs.forEach(s => { try { s.unsubscribe(); } catch(e){} });
-            if (timerInterval) clearInterval(timerInterval);
-        });
     </script>
 </body>
 </html>
