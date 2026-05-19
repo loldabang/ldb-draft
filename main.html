@@ -82,6 +82,16 @@
             const rpsGames = await loadRpsGames();
             console.log('[main] rps games:', rpsGames);
 
+            // 단계 P-4: 경매 모드 — auction-team.html로 직접 라우팅
+            if (room.mode === 'auction' || room.status === 'auction') {
+                console.log('[main] auction mode → auction-team.html');
+                location.href = getSiteBase() + 'pages/auction/auction-team.html'
+                    + '?room=' + encodeURIComponent(room.room_code)
+                    + '&role=' + encodeURIComponent(ROLE || '')
+                    + '&token=' + encodeURIComponent(TOKEN || '');
+                return;
+            }
+
             // 5. 상태에 맞는 페이지로 라우팅
             const route = routeByStatus(room, rpsGames);
             console.log('[main] routing to:', route);
