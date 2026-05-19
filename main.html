@@ -72,6 +72,17 @@
                 }
             }
 
+            // 단계 P-4: 경매 모드 — claim 건너뛰고 바로 auction-team.html로
+            //   (경매는 leader_token으로 직접 검증하므로 claim 단계 불필요)
+            if (room.mode === 'auction' || room.status === 'auction') {
+                console.log('[main] auction mode → auction-team.html');
+                location.href = getSiteBase() + 'pages/auction/auction-team.html'
+                    + '?room=' + encodeURIComponent(room.room_code)
+                    + '&role=' + encodeURIComponent(ROLE || '')
+                    + '&token=' + encodeURIComponent(TOKEN || '');
+                return;
+            }
+
             // 단계 L: 팀장 잠금 — "본인이 맞으십니까?" 확인 + claim
             console.log('[main] ensuring claim...');
             const claimed = await ensureLeaderClaim(room);
@@ -81,16 +92,6 @@
             // 4. 가위바위보 게임 정보 로드
             const rpsGames = await loadRpsGames();
             console.log('[main] rps games:', rpsGames);
-
-            // 단계 P-4: 경매 모드 — auction-team.html로 직접 라우팅
-            if (room.mode === 'auction' || room.status === 'auction') {
-                console.log('[main] auction mode → auction-team.html');
-                location.href = getSiteBase() + 'pages/auction/auction-team.html'
-                    + '?room=' + encodeURIComponent(room.room_code)
-                    + '&role=' + encodeURIComponent(ROLE || '')
-                    + '&token=' + encodeURIComponent(TOKEN || '');
-                return;
-            }
 
             // 5. 상태에 맞는 페이지로 라우팅
             const route = routeByStatus(room, rpsGames);
