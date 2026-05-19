@@ -48,7 +48,8 @@ async function placeAuctionBid(roomCode, leaderToken, amount) {
     return {
         success: !!r.success,
         message: r.message || '',
-        newAmount: r.new_amount
+        newAmount: r.new_amount,
+        auto_sold: !!r.auto_sold
     };
 }
 
