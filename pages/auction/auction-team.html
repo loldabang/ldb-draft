@@ -7,8 +7,8 @@
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
     <link rel="stylesheet" href="../../draft-common.css">
     <style>
-        body { padding: 16px 12px 70px; }
-        .page-wrap { max-width: 1300px; margin: 0 auto; }
+        body { padding: 16px 12px 70px; font-family: 'Pretendard', sans-serif; }
+        .page-wrap { max-width: 1500px; margin: 0 auto; }
         .leader-header { margin-bottom: 12px; }
         .leader-badge {
             background: linear-gradient(135deg, #fef3c7, #fde68a);
@@ -49,13 +49,12 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
 
-        /* 메인 3분할 */
         .main-layout {
             display: grid;
-            grid-template-columns: 220px 1fr 280px;
+            grid-template-columns: 300px 1fr 360px;
             gap: 10px;
         }
-        @media (max-width: 1000px) { .main-layout { grid-template-columns: 1fr; } }
+        @media (max-width: 1150px) { .main-layout { grid-template-columns: 1fr; } }
 
         .section-title {
             font-size: 12px;
@@ -69,36 +68,39 @@
         }
         .section-title .count { color: #6b7280; font-weight: 700; }
 
-        .pool-list { max-height: 320px; overflow-y: auto; }
-        .pool-list.small { max-height: 160px; }
+        .pool-list { max-height: 400px; overflow-y: auto; padding-right: 4px; }
+        .pool-list.small { max-height: 200px; }
         .pool-item {
             background: #f3f4f6;
             border-radius: 6px;
-            padding: 6px 9px;
+            padding: 6px 10px;
             margin-bottom: 4px;
             font-size: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            white-space: nowrap;
+            overflow: hidden;
         }
         .pool-item .name-text {
             flex: 1;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            min-width: 0;
         }
         .pool-item.rejected { background: #fef2f2; color: #991b1b; }
         .pool-empty {
             text-align: center;
             color: #9ca3af;
-            padding: 14px 0;
+            padding: 16px 0;
             font-size: 11px;
             font-style: italic;
         }
         .score-pill {
             background: #6366f1;
-            color: #fff !important;
+            color: #fff;
             font-size: 11px;
             font-weight: 800;
             padding: 2px 8px;
@@ -107,21 +109,18 @@
             flex-shrink: 0;
         }
 
-        /* 중앙 — 경매 진행 */
+        /* 중앙 */
         .auction-stage {
             padding: 24px 16px;
             border-radius: 12px;
             text-align: center;
-            min-height: 220px;
+            min-height: 240px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
         }
-        .auction-stage.waiting {
-            background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-            border: 2px solid #9ca3af;
-        }
+        .auction-stage.waiting { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); border: 2px solid #9ca3af; }
         .auction-stage.previewing {
             background: linear-gradient(135deg, #ede9fe, #c4b5fd);
             border: 2px solid #8b5cf6;
@@ -131,14 +130,8 @@
             0% { transform: scale(0.9); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
         }
-        .auction-stage.bidding {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border: 2px solid #f59e0b;
-        }
-        .auction-stage.done {
-            background: linear-gradient(135deg, #ddd6fe, #c4b5fd);
-            border: 2px solid #a78bfa;
-        }
+        .auction-stage.bidding { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; }
+        .auction-stage.done { background: linear-gradient(135deg, #ddd6fe, #c4b5fd); border: 2px solid #a78bfa; }
         .stage-title {
             font-size: 12px;
             font-weight: 800;
@@ -151,13 +144,10 @@
             font-size: 42px;
             font-weight: 800;
             color: #1f2937;
-            margin: 8px 0;
             line-height: 1.1;
+            margin: 8px 0;
         }
-        .auction-stage.previewing .member-name-huge {
-            font-size: 56px;
-            color: #5b21b6;
-        }
+        .auction-stage.previewing .member-name-huge { font-size: 56px; color: #5b21b6; }
         .member-score-pill {
             display: inline-block;
             background: #6366f1;
@@ -166,14 +156,6 @@
             font-weight: 800;
             padding: 4px 14px;
             border-radius: 14px;
-            margin-top: 4px;
-        }
-        .preview-countdown {
-            font-size: 56px;
-            font-weight: 800;
-            color: #5b21b6;
-            margin-top: 14px;
-            line-height: 1;
         }
         .bid-info-box {
             background: rgba(255,255,255,0.7);
@@ -183,21 +165,9 @@
             width: 100%;
             max-width: 360px;
         }
-        .bid-amount-huge {
-            font-size: 42px;
-            font-weight: 800;
-            color: #dc2626;
-            line-height: 1;
-        }
-        .bidder-info {
-            font-size: 13px;
-            font-weight: 800;
-            color: #374151;
-        }
-        .bidder-info.mine {
-            color: #059669;
-            font-size: 14px;
-        }
+        .bid-amount-huge { font-size: 42px; font-weight: 800; color: #dc2626; line-height: 1; }
+        .bidder-info { font-size: 13px; font-weight: 800; color: #374151; }
+        .bidder-info.mine { color: #059669; font-size: 14px; }
         .timer-pill {
             display: inline-block;
             margin-top: 10px;
@@ -209,16 +179,13 @@
             font-size: 18px;
             font-weight: 800;
         }
-        .timer-pill.warning {
-            background: #fef2f2;
-            animation: tBlink 0.5s ease-in-out infinite;
-        }
+        .timer-pill.warning { background: #fef2f2; animation: tBlink 0.5s ease-in-out infinite; }
         @keyframes tBlink {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.13); }
         }
 
-        /* 내 정보 + 입찰 영역 */
+        /* 내 정보 + 입찰 */
         .my-bid-card { background: #f0f9ff; border: 2px solid #38bdf8; }
         .my-info-row {
             display: flex;
@@ -258,10 +225,7 @@
             cursor: pointer;
             font-family: 'Pretendard', sans-serif;
         }
-        .bid-quick-btn:hover:not(:disabled) {
-            background: #6366f1;
-            color: #fff;
-        }
+        .bid-quick-btn:hover:not(:disabled) { background: #6366f1; color: #fff; }
         .bid-quick-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .bid-custom-row { display: flex; gap: 6px; }
         .bid-custom-input {
@@ -295,27 +259,16 @@
         .bid-msg.error { color: #dc2626; }
         .bid-msg.success { color: #059669; }
 
-        /* 오른쪽 — 팀별 현황 (드래프트와 비슷한 스타일) */
-        .team-cards {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 10px;
-        }
+        /* 팀별 현황 — 5명 슬롯 */
+        .team-cards { display: grid; gap: 10px; }
         .team-card {
             border: 2px solid #e5e7eb;
             border-radius: 10px;
             padding: 10px 12px;
             background: #fff;
         }
-        .team-card.my-team {
-            background: #ede9fe;
-            border-color: #8b5cf6;
-            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
-        }
-        .team-card.highest {
-            background: linear-gradient(135deg, #fef3c7, #fde68a);
-            border-color: #f59e0b;
-        }
+        .team-card.my-team { background: #ede9fe; border-color: #8b5cf6; }
+        .team-card.highest { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; }
         .team-card-head {
             display: flex;
             justify-content: space-between;
@@ -324,11 +277,7 @@
             padding-bottom: 6px;
             border-bottom: 1px dashed #d1d5db;
         }
-        .team-card-title {
-            font-weight: 800;
-            color: #1f2937;
-            font-size: 13px;
-        }
+        .team-card-title { font-size: 13px; font-weight: 800; color: #1f2937; }
         .team-card-points {
             background: #10b981;
             color: #fff;
@@ -339,23 +288,31 @@
         }
         .team-card.highest .team-card-points { background: #f59e0b; }
         .team-members-list { font-size: 11px; }
+        /* 팀 멤버 = 풀과 동일 스타일 */
         .team-member-item {
+            background: #f3f4f6;
+            border-radius: 6px;
+            padding: 5px 9px;
+            margin-bottom: 3px;
+            font-size: 11px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 3px 0;
-            color: #4b5563;
             gap: 6px;
+            white-space: nowrap;
+            overflow: hidden;
         }
-        .team-member-item.leader { color: #92400e; font-weight: 700; }
+        .team-member-item.leader { background: #fef3c7; color: #92400e; }
+        .team-member-item.empty { background: #fff; border: 1px dashed #d1d5db; color: #d1d5db; font-style: italic; }
         .team-member-item .name {
             flex: 1;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            min-width: 0;
         }
-        .team-member-score-pill {
-            background: #6366f1;
+        .team-member-item .amount-pill {
+            background: #10b981;
             color: #fff;
             font-size: 10px;
             font-weight: 800;
@@ -364,14 +321,7 @@
             white-space: nowrap;
             flex-shrink: 0;
         }
-        .team-member-item.leader .team-member-score-pill { background: #f59e0b; }
-        .team-member-amount {
-            color: #059669;
-            font-weight: 800;
-            font-size: 10px;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
+        .team-member-item.leader .amount-pill { background: #f59e0b; }
 
         .toast-msg {
             position: fixed;
@@ -397,7 +347,6 @@
         <div id="leaderHeader" class="leader-header"></div>
         <div id="mainContent"></div>
     </div>
-
     <div id="toastMsg" class="toast-msg"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -411,9 +360,8 @@
         let allTeams = [];
         let auctionResults = [];
         let timerInterval = null;
-        let previewInterval = null;
-        let _previewStartTime = null;
         let realtimeSubs = [];
+        let teamSlotsCount = 5;
 
         function showToast(msg, ms) {
             const t = document.getElementById('toastMsg');
@@ -441,23 +389,20 @@
                 .eq('room_code', room.room_code).order('team_index');
             allTeams = teams || [];
 
+            const totalMembers = (currentRoom.members || []).length + allTeams.length;
+            teamSlotsCount = allTeams.length > 0 ? Math.floor(totalMembers / allTeams.length) : 5;
+
             myTeam = allTeams.find(t => t.leader_token === TOKEN);
             if (!myTeam) {
                 document.body.innerHTML = '<div class="card">팀 정보를 찾을 수 없습니다.</div>';
                 return;
             }
 
-            // 팀장 확인 — DB의 claim 상태 확인
-            //   1) 다른 사람이 이미 claim했고 내 localStorage에는 기록 없음 → 거부
-            //   2) 본인이 이미 claim한 상태 → 통과 (재로드)
-            //   3) 아직 아무도 claim 안 함 → 확인 모달 → [예] → DB에 claim
+            // 팀장 인증 (DB 기반)
             const claimKey = 'loldabang_auctionClaim_' + currentRoom.room_code + '_' + myTeam.team_index;
             const localOk = localStorage.getItem(claimKey) === '1';
-
-            // DB 상태 조회
             const verifyRes = await verifyAuctionLeader(currentRoom.room_code, TOKEN);
             if (verifyRes.claimed && !localOk) {
-                // 다른 사람이 이미 claim → 거부
                 document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
                     <div style="font-size:48px; margin-bottom:16px;">🔒</div>
                     <h2 style="font-size:20px; margin-bottom:10px; color:#dc2626;">이미 다른 사람이 접속 중입니다</h2>
@@ -465,15 +410,12 @@
                 </div>`;
                 return;
             }
-
             if (!verifyRes.claimed) {
-                // 첫 접속 — 확인 모달
                 const ok = await _showClaimConfirmScreen(myTeam.leader_name);
                 if (!ok) {
                     document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
                         <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
                         <h2 style="font-size:18px; margin-bottom:10px; color:#dc2626;">접속이 거부되었습니다</h2>
-                        <p style="font-size:13px; color:#6b7280;">본인이 아니라고 응답하셨습니다.</p>
                     </div>`;
                     return;
                 }
@@ -482,16 +424,14 @@
                     document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
                         <div style="font-size:48px; margin-bottom:16px;">❌</div>
                         <h2 style="font-size:18px; margin-bottom:10px; color:#dc2626;">접속 실패</h2>
-                        <p style="font-size:13px; color:#6b7280;">${escapeHtml(claimRes.message || '인증에 실패했습니다.')}</p>
+                        <p style="font-size:13px; color:#6b7280;">${escapeHtml(claimRes.message || '')}</p>
                     </div>`;
                     return;
                 }
                 if (claimRes.alreadyClaimed && !localOk) {
-                    // 동시 접속 — 다른 사람이 먼저 claim
                     document.body.innerHTML = `<div style="padding:60px; text-align:center; font-family:'Pretendard',sans-serif;">
                         <div style="font-size:48px; margin-bottom:16px;">🔒</div>
                         <h2 style="font-size:20px; margin-bottom:10px; color:#dc2626;">이미 다른 사람이 접속했습니다</h2>
-                        <p style="font-size:13px; color:#6b7280;">관리자에게 문의해주세요.</p>
                     </div>`;
                     return;
                 }
@@ -500,7 +440,6 @@
 
             auctionResults = await loadAuctionResults(currentRoom.room_code);
 
-            renderHeader();
             renderMain();
             subscribeRealtime();
             startTimer();
@@ -508,25 +447,19 @@
             window.addEventListener('beforeunload', () => {
                 realtimeSubs.forEach(s => { try { s.unsubscribe(); } catch(e){} });
                 if (timerInterval) clearInterval(timerInterval);
-                if (previewInterval) clearInterval(previewInterval);
             });
         }
 
         function renderHeader() {
             const round = currentRoom.auction_round || 1;
-            const roundPill = round === 1
-                ? '<span class="round-pill">1차</span>'
-                : '<span class="round-pill r2">유찰 경매</span>';
+            const roundPill = round === 1 ? '<span class="round-pill">1차</span>' : '<span class="round-pill r2">유찰 경매</span>';
             document.getElementById('leaderHeader').innerHTML = `
                 <span class="leader-badge">👑 ${myTeam.team_index}팀 — ${escapeHtml(myTeam.leader_name)}</span>
                 <span class="step-badge">⚔️ 경매 진행 중${roundPill}</span>`;
         }
 
         function renderMain() {
-            const state = currentRoom.auction_state || 'waiting_for_call';
             renderHeader();
-
-            // 3분할 레이아웃
             const content = `
                 <div class="main-layout">
                     <div class="left-col">
@@ -580,35 +513,23 @@
                 if (state === 'rejected_pool_done') {
                     extra = '<p style="font-size:14px; color:#dc2626; margin-top:8px;">1차 경매 종료. 관리자가 2차 진행 또는 수동 배정 중.</p>';
                 }
-                // 다음 멤버 공개 (admin이 ON 했고 + 미리뽑힌 멤버 있음)
-                let nextPreview = '';
-                if (currentRoom.auction_show_next_member && currentRoom.auction_next_member) {
-                    nextPreview = `<div style="margin-top:14px; padding:10px 14px; background:rgba(99, 102, 241, 0.1); border:2px dashed #818cf8; border-radius:10px;">
-                        <div style="font-size:11px; color:#4338ca; font-weight:800; margin-bottom:4px;">👁 다음 호출 예정</div>
-                        <div style="font-size:20px; font-weight:800; color:#4338ca;">${escapeHtml(currentRoom.auction_next_member)}</div>
-                    </div>`;
-                }
                 wrap.innerHTML = `<div class="auction-stage waiting">
                     <div class="stage-title">⏳ 다음 멤버 호출 대기</div>
                     <p style="font-size:13px; color:#6b7280;">관리자가 멤버를 호출하면 표시됩니다.</p>
                     ${extra}
-                    ${nextPreview}
                 </div>`;
             } else if (state === 'previewing') {
-                const previewSec = currentRoom.auction_preview_seconds || 2;
+                // 예고 단계 — 타이머 없음 (요청 8)
                 wrap.innerHTML = `<div class="auction-stage previewing">
                     <div class="stage-title">👀 다음 경매 멤버</div>
                     <div class="member-name-huge">${escapeHtml(currentRoom.current_member_name || '')}</div>
                     <div class="member-score-pill">점수 ${currentRoom.current_member_score || 0}</div>
-                    <div class="preview-countdown" id="previewCountdown">${previewSec}</div>
                 </div>`;
-                startPreviewCountdown();
             } else if (state === 'bidding') {
                 const currentBid = currentRoom.current_bid_amount || 0;
                 const bidderTeam = currentRoom.current_bid_team_index;
                 const bidder = allTeams.find(t => t.team_index === bidderTeam);
                 const isMine = bidderTeam === myTeam.team_index;
-                const mineClass = isMine ? 'mine' : '';
                 wrap.innerHTML = `<div class="auction-stage bidding">
                     <div class="stage-title">🔥 입찰 진행 중</div>
                     <div class="member-name-huge">${escapeHtml(currentRoom.current_member_name || '')}</div>
@@ -616,7 +537,7 @@
                     <div class="bid-info-box">
                         <div style="font-size:11px; color:#6b7280; font-weight:700;">현재 최고 입찰</div>
                         <div class="bid-amount-huge">${currentBid}P</div>
-                        <div class="bidder-info ${mineClass}">
+                        <div class="bidder-info ${isMine ? 'mine' : ''}">
                             ${bidder ? `${bidderTeam}팀 — ${escapeHtml(bidder.leader_name)}${isMine ? ' (나)' : ''}` : '아직 입찰 없음'}
                         </div>
                     </div>
@@ -626,8 +547,7 @@
                 wrap.innerHTML = `<div class="auction-stage done">
                     <div class="stage-title">🎉 경매 종료</div>
                     <p style="font-size:14px; color:#5b21b6; margin: 8px 0;">
-                        모든 경매가 완료되었습니다.<br>
-                        팀 구성을 확인해주세요.
+                        모든 경매가 완료되었습니다.
                     </p>
                 </div>`;
             }
@@ -694,6 +614,21 @@
                 const myMembers = auctionResults.filter(r => r.team_index === t.team_index);
                 const isHighest = bidderTeam === t.team_index;
                 const isMyTeam = t.team_index === myTeam.team_index;
+                const memberSlots = Math.max(0, teamSlotsCount - 1);
+                let memberHtml = '';
+                for (let i = 0; i < memberSlots; i++) {
+                    const m = myMembers[i];
+                    if (m) {
+                        memberHtml += `<div class="team-member-item">
+                            <span class="name">${escapeHtml(m.member_name)}</span>
+                            <span class="amount-pill">${m.final_amount}P</span>
+                        </div>`;
+                    } else {
+                        memberHtml += `<div class="team-member-item empty">
+                            <span class="name">(빈 자리)</span>
+                        </div>`;
+                    }
+                }
                 return `<div class="team-card ${isHighest ? 'highest' : ''} ${isMyTeam ? 'my-team' : ''}">
                     <div class="team-card-head">
                         <span class="team-card-title">${t.team_index}팀${isMyTeam ? ' (나)' : ''}</span>
@@ -702,12 +637,9 @@
                     <div class="team-members-list">
                         <div class="team-member-item leader">
                             <span class="name">👑 ${escapeHtml(t.leader_name)}</span>
-                            <span class="team-member-score-pill">${t.leader_score || 0}</span>
+                            <span class="amount-pill">${t.leader_score || 0}점</span>
                         </div>
-                        ${myMembers.map(m => `<div class="team-member-item">
-                            <span class="name">${escapeHtml(m.member_name)}</span>
-                            <span class="team-member-amount">${m.final_amount}P</span>
-                        </div>`).join('')}
+                        ${memberHtml}
                     </div>
                 </div>`;
             }).join('');
@@ -765,25 +697,6 @@
             document.getElementById('rejectedCount').innerText = '(' + rejectedArr.length + ')';
         }
 
-        // ─── 예고 카운트다운 ─────────────────────────────────────────────
-        function startPreviewCountdown() {
-            if (previewInterval) clearInterval(previewInterval);
-            _previewStartTime = currentRoom.preview_started_at ? new Date(currentRoom.preview_started_at).getTime() : Date.now();
-            previewInterval = setInterval(tickPreview, 100);
-        }
-        function tickPreview() {
-            const el = document.getElementById('previewCountdown');
-            if (!currentRoom || currentRoom.auction_state !== 'previewing') {
-                if (previewInterval) clearInterval(previewInterval);
-                return;
-            }
-            const previewSec = currentRoom.auction_preview_seconds || 2;
-            const elapsed = (Date.now() - _previewStartTime) / 1000;
-            const remaining = Math.max(0, previewSec - elapsed);
-            if (el) el.innerText = remaining.toFixed(1);
-        }
-
-        // ─── 입찰 ─────────────────────────────────────────────────────────
         async function placeBidQuick(addAmount) {
             const currentBid = currentRoom.current_bid_amount || 0;
             await placeBid(currentBid + addAmount);
@@ -816,7 +729,6 @@
             setTimeout(() => { if (el) el.innerText = ''; }, 3000);
         }
 
-        // ─── 타이머 ─────────────────────────────────────────────────────
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(tickTimer, 200);
@@ -831,7 +743,6 @@
             else d.classList.remove('warning');
         }
 
-        // ─── Realtime ───────────────────────────────────────────────────
         function subscribeRealtime() {
             const client = initSupabase();
             realtimeSubs.push(client
