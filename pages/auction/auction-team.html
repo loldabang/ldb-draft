@@ -148,15 +148,53 @@
             margin: 8px 0;
         }
         .auction-stage.previewing .member-name-huge { font-size: 56px; color: #5b21b6; }
-        .member-score-pill {
-            display: inline-block;
-            background: #6366f1;
-            color: #fff;
-            font-size: 14px;
-            font-weight: 800;
-            padding: 4px 14px;
-            border-radius: 14px;
+        .member-tag {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 700;
+            margin-bottom: 4px;
         }
+        .member-tier-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 6px 0;
+        }
+        .tier-pill {
+            padding: 3px 11px;
+            border-radius: 11px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .tier-pill.peak { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .tier-pill.curr { background: linear-gradient(135deg, #6366f1, #4338ca); }
+        .member-lane-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 6px;
+            align-items: center;
+        }
+        .lane-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .lane-label {
+            font-size: 11px;
+            color: #6b7280;
+            font-weight: 700;
+            min-width: 30px;
+        }
+        .lane-pill {
+            padding: 2px 9px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .lane-pill.main { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+        .lane-pill.hope { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
         .bid-info-box {
             background: rgba(255,255,255,0.7);
             padding: 12px;
@@ -363,6 +401,46 @@
         let realtimeSubs = [];
         let teamSlotsCount = 5;
 
+        // 단계 P-6: 멤버 풀에서 파싱 정보 찾기
+        function findMemberDetails(name) {
+            if (!currentRoom || !Array.isArray(currentRoom.members)) return null;
+            return currentRoom.members.find(m => m && m.name === name) || null;
+        }
+        function getDisplayName(name) {
+            const det = findMemberDetails(name);
+            if (det && det.nick) return det.nick;
+            if (typeof name === 'string') {
+                const hashIdx = name.indexOf('#');
+                if (hashIdx > 0) return name.substring(0, hashIdx).trim();
+                return name.split(/\s+/)[0] || name;
+            }
+            return name || '';
+        }
+        function buildMemberDetailHtml(name) {
+            const det = findMemberDetails(name);
+            if (!det) {
+                return `<div class="member-name-huge">${escapeHtml(name || '')}</div>`;
+            }
+            const nick = det.nick || name;
+            const tag = det.tag || '';
+            const peak = det.peakTier || '';
+            const curr = det.currentTier || '';
+            const mainL = det.mainLanes || [];
+            const hopeL = det.hopeLanes || [];
+            return `<div class="member-detail-wrap">
+                <div class="member-name-huge">${escapeHtml(nick)}</div>
+                ${tag ? `<div class="member-tag">#${escapeHtml(tag)}</div>` : ''}
+                <div class="member-tier-row">
+                    ${peak ? `<span class="tier-pill peak">최고 ${escapeHtml(peak)}</span>` : ''}
+                    ${curr ? `<span class="tier-pill curr">현재 ${escapeHtml(curr)}</span>` : ''}
+                </div>
+                <div class="member-lane-row">
+                    ${mainL.length > 0 ? `<div class="lane-group"><span class="lane-label">주</span>${mainL.map(l => `<span class="lane-pill main">${escapeHtml(l)}</span>`).join('')}</div>` : ''}
+                    ${hopeL.length > 0 ? `<div class="lane-group"><span class="lane-label">희망</span>${hopeL.map(l => `<span class="lane-pill hope">${escapeHtml(l)}</span>`).join('')}</div>` : ''}
+                </div>
+            </div>`;
+        }
+
         function showToast(msg, ms) {
             const t = document.getElementById('toastMsg');
             if (!t) return;
@@ -522,8 +600,7 @@
                 // 예고 단계 — 타이머 없음 (요청 8)
                 wrap.innerHTML = `<div class="auction-stage previewing">
                     <div class="stage-title">👀 다음 경매 멤버</div>
-                    <div class="member-name-huge">${escapeHtml(currentRoom.current_member_name || '')}</div>
-                    <div class="member-score-pill">점수 ${currentRoom.current_member_score || 0}</div>
+                    ${buildMemberDetailHtml(currentRoom.current_member_name)}
                 </div>`;
             } else if (state === 'bidding') {
                 const currentBid = currentRoom.current_bid_amount || 0;
@@ -532,8 +609,7 @@
                 const isMine = bidderTeam === myTeam.team_index;
                 wrap.innerHTML = `<div class="auction-stage bidding">
                     <div class="stage-title">🔥 입찰 진행 중</div>
-                    <div class="member-name-huge">${escapeHtml(currentRoom.current_member_name || '')}</div>
-                    <div class="member-score-pill">점수 ${currentRoom.current_member_score || 0}</div>
+                    ${buildMemberDetailHtml(currentRoom.current_member_name)}
                     <div class="bid-info-box">
                         <div style="font-size:11px; color:#6b7280; font-weight:700;">현재 최고 입찰</div>
                         <div class="bid-amount-huge">${currentBid}P</div>
@@ -620,7 +696,7 @@
                     const m = myMembers[i];
                     if (m) {
                         memberHtml += `<div class="team-member-item">
-                            <span class="name">${escapeHtml(m.member_name)}</span>
+                            <span class="name">${escapeHtml(getDisplayName(m.member_name))}</span>
                             <span class="amount-pill">${m.final_amount}P</span>
                         </div>`;
                     } else {
@@ -674,7 +750,7 @@
                     remEl.innerHTML = '<div class="pool-empty">남은 멤버 없음</div>';
                 } else {
                     remEl.innerHTML = remaining.map(m => `<div class="pool-item">
-                        <span class="name-text">${escapeHtml(m.name)}</span>
+                        <span class="name-text">${escapeHtml(getDisplayName(m.name))}</span>
                         ${m.score != null && m.score !== '' ? `<span class="score-pill">${m.score}</span>` : ''}
                     </div>`).join('');
                 }
@@ -689,7 +765,7 @@
                     rejEl.innerHTML = '<div class="pool-empty">유찰 없음</div>';
                 } else {
                     rejEl.innerHTML = rejectedArr.map(m => `<div class="pool-item rejected">
-                        <span class="name-text">${escapeHtml(m.name)}</span>
+                        <span class="name-text">${escapeHtml(getDisplayName(m.name))}</span>
                         ${m.score != null && m.score !== '' ? `<span class="score-pill">${m.score}</span>` : ''}
                     </div>`).join('');
                 }
