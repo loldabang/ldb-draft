@@ -1224,9 +1224,9 @@
             setTimeout(() => { if (el) el.innerText = ''; }, 3000);
         }
 
-        // P-6: 타이머 lock
+        // P-6: 타이머 lock — 멤버 단위
         let _lockedTimerSec = null;
-        let _lockedTimerLastBid = null;
+        let _lockedTimerMember = null;
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(tickTimer, 200);
@@ -1237,10 +1237,11 @@
             if (currentRoom.auction_state !== 'bidding') return;
             const lastBid = currentRoom.last_bid_at;
             if (!lastBid) return;
-            // 입찰 시점 lock
-            if (lastBid !== _lockedTimerLastBid) {
+            // 멤버 단위로 lock
+            const memberKey = currentRoom.current_member_name;
+            if (memberKey !== _lockedTimerMember) {
                 _lockedTimerSec = currentRoom.auction_timer_seconds || 10;
-                _lockedTimerLastBid = lastBid;
+                _lockedTimerMember = memberKey;
             }
             const remaining = computeAuctionTimerRemaining(lastBid, _lockedTimerSec || 10);
             d.innerText = '⏱ ' + remaining.toFixed(1) + '초';
