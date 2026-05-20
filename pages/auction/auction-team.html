@@ -1136,31 +1136,29 @@
         }
 
         function renderPools() {
-            const calledArr = Array.isArray(currentRoom.auction_called_members) ? currentRoom.auction_called_members : [];
-            const calledNames = new Set();
-            calledArr.forEach(c => {
-                if (typeof c === 'string') calledNames.add(c);
-                else if (c && c.name) calledNames.add(c.name);
-            });
-            auctionResults.forEach(r => calledNames.add(r.member_name));
-
+            // P-6: 남은 멤버 풀 = 전체 - 낙찰 - 유찰 - 현재 경매중
+            const soldNames = new Set(auctionResults.map(r => r.member_name));
             const rejectedArr = Array.isArray(currentRoom.auction_rejected_members) ? currentRoom.auction_rejected_members : [];
             const rejectedNames = new Set(rejectedArr.map(r => r && r.name).filter(Boolean));
             const membersArr = Array.isArray(currentRoom.members) ? currentRoom.members : [];
             const round2PoolArr = Array.isArray(currentRoom.auction_round2_pool) ? currentRoom.auction_round2_pool : [];
             const round = currentRoom.auction_round || 1;
+            const currentMember = currentRoom.current_member_name;
 
             let remaining;
             if (round === 1) {
-                remaining = membersArr.filter(m => m && m.name && !calledNames.has(m.name) && !rejectedNames.has(m.name));
+                remaining = membersArr.filter(m =>
+                    m && m.name
+                    && !soldNames.has(m.name)
+                    && !rejectedNames.has(m.name)
+                    && m.name !== currentMember
+                );
             } else {
-                // 2차+: round2_pool - 이미 낙찰 - 새로 유찰된 사람
-                const soldNames = new Set(auctionResults.map(r => r.member_name));
                 remaining = round2PoolArr.filter(m =>
                     m && m.name
                     && !soldNames.has(m.name)
-                    && !calledNames.has(m.name)
                     && !rejectedNames.has(m.name)
+                    && m.name !== currentMember
                 );
             }
 
