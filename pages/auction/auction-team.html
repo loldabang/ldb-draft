@@ -1013,12 +1013,12 @@
             // 정리
             try { realtimeSubs.forEach(s => { try { s.unsubscribe(); } catch(e){} }); } catch(e) {}
             try { if (timerInterval) clearInterval(timerInterval); } catch(e) {}
-            // 창 닫기 시도 — 여러 방법
+            // 창 닫기 시도 — 카톡 링크 등 사용자가 직접 연 창은 브라우저 보안상 닫을 수 없음
             try { window.open('', '_self'); window.close(); } catch (e) {}
             try { window.close(); } catch (e) {}
-            // 닫기 실패 시 about:blank로 (사용자가 의식 못 함)
+            // 닫기 실패한 경우 — 흰 배경 안내 페이지 (검정 about:blank 대신)
             setTimeout(() => {
-                try { window.location.href = 'about:blank'; } catch(e) {}
+                document.documentElement.innerHTML = '<head><style>body{margin:0;background:#fff;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#9ca3af;font-size:13px;}</style></head><body>이 탭을 닫아도 됩니다</body>';
             }, 100);
         }
 
