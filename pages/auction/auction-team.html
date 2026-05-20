@@ -578,7 +578,7 @@
             font-weight: 800;
             color: #fff;
         }
-        .points-cell .point-unit {
+        .points-cell .point-unit { margin-left: 4px;
             font-size: 11px;
             color: #94a3b8;
             font-weight: 700;
@@ -1279,7 +1279,9 @@
                     event: 'UPDATE', schema: 'public', table: 'rooms',
                     filter: `room_code=eq.${currentRoom.room_code}`
                 }, (payload) => {
-                    currentRoom = payload.new;
+                    if (!payload || !payload.new) return;
+                    // P-6: 머지 (부분 업데이트 대비)
+                    currentRoom = Object.assign({}, currentRoom, payload.new);
                     renderMain();
                 })
                 .subscribe()
@@ -1290,12 +1292,15 @@
                     event: 'UPDATE', schema: 'public', table: 'teams',
                     filter: `room_code=eq.${currentRoom.room_code}`
                 }, (payload) => {
+                    if (!payload || !payload.new) return;
                     const idx = allTeams.findIndex(t => t.id === payload.new.id);
-                    if (idx !== -1) allTeams[idx] = payload.new;
-                    if (payload.new.team_index === myTeam.team_index) myTeam = payload.new;
+                    if (idx !== -1) allTeams[idx] = Object.assign({}, allTeams[idx], payload.new);
+                    if (payload.new.team_index === myTeam.team_index) {
+                        myTeam = Object.assign({}, myTeam, payload.new);
+                    }
                     renderPointsBoard();
                     renderTeams();
-                    renderStage();  // P-6: 미접속 안내 갱신
+                    renderStage();
                     renderMyBidArea();
                 })
                 .subscribe()
