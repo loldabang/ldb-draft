@@ -51,8 +51,11 @@
 
         .main-layout {
             display: grid;
-            grid-template-columns: 360px 1fr 420px;
+            grid-template-columns: 320px 1fr 640px;
             gap: 10px;
+        }
+        @media (max-width: 1400px) {
+            .main-layout { grid-template-columns: 300px 1fr 500px; }
         }
         @media (max-width: 1150px) { .main-layout { grid-template-columns: 1fr; } }
 
@@ -427,7 +430,14 @@
         .bid-msg.success { color: #059669; }
 
         /* 팀별 현황 — 5명 슬롯 */
-        .team-cards { display: grid; gap: 10px; }
+        .team-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        @media (max-width: 1400px) {
+            .team-cards { grid-template-columns: 1fr; }
+        }
         .team-card {
             border: 2px solid #e5e7eb;
             border-radius: 10px;
@@ -539,13 +549,15 @@
         .points-cell {
             background: rgba(255,255,255,0.08);
             border-radius: 6px;
-            padding: 5px 8px;
+            padding: 6px 10px;
             text-align: center;
             border: 2px solid transparent;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            white-space: nowrap;
+            overflow: hidden;
         }
         .points-cell.mine {
             background: linear-gradient(135deg, #6366f1, #4338ca);
@@ -553,18 +565,21 @@
             box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
         }
         .points-cell .team-label {
-            font-size: 11px;
+            font-size: 12px;
             color: #cbd5e1;
             font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100px;
         }
         .points-cell.mine .team-label { color: #e0e7ff; }
         .points-cell .point-num {
-            font-size: 16px;
+            font-size: 17px;
             font-weight: 800;
             color: #fff;
         }
         .points-cell .point-unit {
-            font-size: 10px;
+            font-size: 11px;
             color: #94a3b8;
             font-weight: 700;
         }
@@ -863,8 +878,17 @@
             if (!wrap) return;
             const cells = allTeams.map(t => {
                 const isMine = t.team_index === myTeam.team_index;
+                // P-6: 닉네임 (태그 제외) 표시
+                let nick = t.leader_name || '';
+                const det = findMemberDetails(t.leader_name);
+                if (det && det.nick) nick = det.nick;
+                else {
+                    const hashIdx = nick.indexOf('#');
+                    if (hashIdx > 0) nick = nick.substring(0, hashIdx).trim();
+                }
+                const label = `${t.team_index}팀 ${nick}${isMine ? ' (나)' : ''}`;
                 return `<div class="points-cell ${isMine ? 'mine' : ''}">
-                    <div class="team-label">${t.team_index}팀${isMine ? ' (나)' : ''}</div>
+                    <div class="team-label" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
                     <div><span class="point-num">${t.auction_points}</span><span class="point-unit">P</span></div>
                 </div>`;
             }).join('');
