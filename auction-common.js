@@ -191,10 +191,29 @@ async function loadAuctionBids(roomCode) {
     return data || [];
 }
 
+// P-6: 서버 시간 동기화 — 클라이언트 PC 시계 오차 보정
+let _serverTimeOffset = 0;
+async function syncServerTime() {
+    try {
+        const client = initSupabase();
+        const sentAt = Date.now();
+        const { data, error } = await client.rpc('get_server_now');
+        if (error) { console.warn('time sync error:', error); return; }
+        const receivedAt = Date.now();
+        const rtt = receivedAt - sentAt;
+        const serverNow = new Date(data).getTime();
+        _serverTimeOffset = serverNow - (sentAt + rtt / 2);
+        console.log('[time sync] offset = ' + _serverTimeOffset + 'ms (RTT ' + rtt + 'ms)');
+    } catch (e) { console.warn('time sync exception:', e); }
+}
+function getServerNow() {
+    return Date.now() + _serverTimeOffset;
+}
+
 // 타이머 남은 초 계산
 function computeAuctionTimerRemaining(lastBidAt, timerSeconds) {
     if (!lastBidAt) return timerSeconds || 10;
     const limit = timerSeconds || 10;
-    const elapsed = (Date.now() - new Date(lastBidAt).getTime()) / 1000;
+    const elapsed = (getServerNow() - new Date(lastBidAt).getTime()) / 1000;
     return Math.max(0, limit - elapsed);
 }
