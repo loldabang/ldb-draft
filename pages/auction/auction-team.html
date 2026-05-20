@@ -791,6 +791,17 @@
             const myIdx = allTeams.findIndex(t => t.id === myTeam.id);
             if (myIdx !== -1) allTeams[myIdx].leader_claimed = true;
 
+            // P-6: 다른 팀장들의 claim 상태가 stale일 수 있으므로 allTeams 재로드
+            //   (1팀장이 먼저 [예] 누른 후 2팀장이 [예] 눌렀을 때,
+            //    2팀장의 allTeams 메모리에는 1팀장이 아직 false일 수 있음)
+            const { data: freshTeams } = await client.from('teams')
+                .select('*').eq('room_code', currentRoom.room_code).order('team_index');
+            if (freshTeams) {
+                allTeams = freshTeams;
+                const refreshedMyTeam = allTeams.find(t => t.team_index === myTeam.team_index);
+                if (refreshedMyTeam) myTeam = refreshedMyTeam;
+            }
+
             auctionResults = await loadAuctionResults(currentRoom.room_code);
 
             renderMain();
@@ -1177,10 +1188,15 @@
 
             const rejEl = document.getElementById('rejectedPool');
             if (rejEl) {
+                // P-6: 티어순 정렬 (점수 높은 사람부터) + 필터
+                const rejectedSorted = [...rejectedArr].sort((a, b) => ((b && b.score) || 0) - ((a && a.score) || 0));
+                const rejectedFiltered = rejectedSorted.filter(memberMatchesFilter);
                 if (rejectedArr.length === 0) {
                     rejEl.innerHTML = '<div class="pool-empty">유찰 없음</div>';
+                } else if (rejectedFiltered.length === 0) {
+                    rejEl.innerHTML = '<div class="pool-empty">필터에 맞는 멤버 없음</div>';
                 } else {
-                    rejEl.innerHTML = rejectedArr.map(m => buildPoolItemHtml(m, true)).join('');
+                    rejEl.innerHTML = rejectedFiltered.map(m => buildPoolItemHtml(m, true)).join('');
                 }
             }
             document.getElementById('rejectedCount').innerText = '(' + rejectedArr.length + ')';
@@ -1259,6 +1275,20 @@
             if (currentRoom.auction_state !== 'bidding') return;
             const lastBid = currentRoom.last_bid_at;
             if (!lastBid) return;
+            // P-6: 정지 중
+            if (currentRoom.auction_paused) {
+                const memberKey = currentRoom.current_member_name;
+                if (memberKey !== _lockedTimerMember) {
+                    _lockedTimerSec = currentRoom.auction_timer_seconds || 10;
+                    _lockedTimerMember = memberKey;
+                }
+                const pausedAt = currentRoom.auction_paused_at ? new Date(currentRoom.auction_paused_at).getTime() : Date.now();
+                const elapsed = (pausedAt - new Date(lastBid).getTime()) / 1000;
+                const remaining = Math.max(0, (_lockedTimerSec || 10) - elapsed);
+                d.innerText = '⏸ ' + remaining.toFixed(1) + '초 (정지)';
+                d.classList.add('warning');
+                return;
+            }
             // 멤버 단위로 lock
             const memberKey = currentRoom.current_member_name;
             if (memberKey !== _lockedTimerMember) {
