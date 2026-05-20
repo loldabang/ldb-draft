@@ -1008,11 +1008,23 @@
         }
 
         function onTeamExit() {
+            // 1. 모든 인터벌/구독 정리
+            try { realtimeSubs.forEach(s => { try { s.unsubscribe(); } catch(e){} }); } catch(e) {}
+            try { if (timerInterval) clearInterval(timerInterval); } catch(e) {}
+            // 2. 창 닫기 시도
             try { window.close(); } catch (e) {}
-            // window.close() 안 되면 빈 페이지로 이동
+            // 3. 닫기 실패 시 안내 페이지로 교체
             setTimeout(() => {
-                window.location.href = 'about:blank';
-            }, 200);
+                document.body.innerHTML = `
+                    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;font-family:'Pretendard',sans-serif;background:linear-gradient(135deg,#ddd6fe,#c4b5fd);">
+                        <div style="font-size:64px;margin-bottom:16px;">👋</div>
+                        <h2 style="font-size:24px;color:#4338ca;margin-bottom:12px;">경매가 종료되었습니다</h2>
+                        <p style="color:#6b7280;font-size:14px;text-align:center;line-height:1.6;">
+                            수고하셨습니다!<br>
+                            이 탭을 닫아주세요. (Ctrl+W 또는 X 버튼)
+                        </p>
+                    </div>`;
+            }, 100);
         }
 
         function renderMyBidArea() {
@@ -1065,6 +1077,16 @@
                     }
                 });
                 inp.addEventListener('wheel', e => e.preventDefault(), { passive: false });
+                // P-6: bidding 상태로 새로 들어왔거나 새 멤버면 자동 포커스
+                if (canBid && currentRoom.auction_state === 'bidding') {
+                    const memberKey = currentRoom.current_member_name;
+                    if (memberKey && memberKey !== window._lastFocusedBidMember) {
+                        window._lastFocusedBidMember = memberKey;
+                        setTimeout(() => {
+                            try { inp.focus(); } catch (e) {}
+                        }, 50);
+                    }
+                }
             }
         }
 
