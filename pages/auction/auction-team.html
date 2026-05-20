@@ -1008,22 +1008,15 @@
         }
 
         function onTeamExit() {
-            // 1. 모든 인터벌/구독 정리
+            // 정리
             try { realtimeSubs.forEach(s => { try { s.unsubscribe(); } catch(e){} }); } catch(e) {}
             try { if (timerInterval) clearInterval(timerInterval); } catch(e) {}
-            // 2. 창 닫기 시도
+            // 창 닫기 시도 — 여러 방법
+            try { window.open('', '_self'); window.close(); } catch (e) {}
             try { window.close(); } catch (e) {}
-            // 3. 닫기 실패 시 안내 페이지로 교체
+            // 닫기 실패 시 about:blank로 (사용자가 의식 못 함)
             setTimeout(() => {
-                document.body.innerHTML = `
-                    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;font-family:'Pretendard',sans-serif;background:linear-gradient(135deg,#ddd6fe,#c4b5fd);">
-                        <div style="font-size:64px;margin-bottom:16px;">👋</div>
-                        <h2 style="font-size:24px;color:#4338ca;margin-bottom:12px;">경매가 종료되었습니다</h2>
-                        <p style="color:#6b7280;font-size:14px;text-align:center;line-height:1.6;">
-                            수고하셨습니다!<br>
-                            이 탭을 닫아주세요. (Ctrl+W 또는 X 버튼)
-                        </p>
-                    </div>`;
+                try { window.location.href = 'about:blank'; } catch(e) {}
             }, 100);
         }
 
@@ -1036,7 +1029,7 @@
             const isMyBid = bidderTeam === myTeam.team_index;
             const minBid = currentBid + 1;
             const myMembers = auctionResults.filter(r => r.team_index === myTeam.team_index);
-            const canBid = state === 'bidding' && !isMyBid;
+            const canBid = state === 'bidding' && !isMyBid && !currentRoom.auction_paused;
 
             area.innerHTML = `
                 <div style="font-weight:800; color:#0369a1; margin-bottom:8px; font-size:14px;">
@@ -1052,7 +1045,8 @@
                 </div>
                 <div class="bid-area ${canBid ? '' : 'disabled'}">
                     <div style="font-weight:800; font-size:13px; margin-bottom:8px; text-align:center; color:#1f2937;">
-                        ${state !== 'bidding' ? '경매 진행 중이 아닙니다' :
+                        ${currentRoom.auction_paused ? '⏸ 경매 일시 정지 중' :
+                          state !== 'bidding' ? '경매 진행 중이 아닙니다' :
                           isMyBid ? '✓ 현재 내가 최고 입찰자' :
                           `📢 입찰하기 (최소 ${minBid}P)`}
                     </div>
