@@ -1029,7 +1029,7 @@
             const isMyBid = bidderTeam === myTeam.team_index;
             const minBid = currentBid + 1;
             const myMembers = auctionResults.filter(r => r.team_index === myTeam.team_index);
-            const canBid = state === 'bidding' && !isMyBid && !currentRoom.auction_paused;
+            const canBid = state === 'bidding' && !isMyBid;
 
             area.innerHTML = `
                 <div style="font-weight:800; color:#0369a1; margin-bottom:8px; font-size:14px;">
@@ -1045,7 +1045,7 @@
                 </div>
                 <div class="bid-area ${canBid ? '' : 'disabled'}">
                     <div style="font-weight:800; font-size:13px; margin-bottom:8px; text-align:center; color:#1f2937;">
-                        ${currentRoom.auction_paused ? '⏸ 경매 일시 정지 중' :
+                        ${currentRoom.auction_paused ? `⏸ 일시 정지 — 입찰 가능 (최소 ${minBid}P)` :
                           state !== 'bidding' ? '경매 진행 중이 아닙니다' :
                           isMyBid ? '✓ 현재 내가 최고 입찰자' :
                           `📢 입찰하기 (최소 ${minBid}P)`}
