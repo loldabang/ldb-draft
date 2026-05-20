@@ -806,6 +806,8 @@
 
             renderMain();
             subscribeRealtime();
+            await syncServerTime();  // P-6: 서버 시간 동기화
+            setInterval(syncServerTime, 60 * 1000);  // 1분마다
             startTimer();
 
             window.addEventListener('beforeunload', () => {
@@ -1298,7 +1300,7 @@
                     _lockedTimerSec = currentRoom.auction_timer_seconds || 10;
                     _lockedTimerMember = memberKey;
                 }
-                const pausedAt = currentRoom.auction_paused_at ? new Date(currentRoom.auction_paused_at).getTime() : Date.now();
+                const pausedAt = currentRoom.auction_paused_at ? new Date(currentRoom.auction_paused_at).getTime() : getServerNow();
                 const elapsed = (pausedAt - new Date(lastBid).getTime()) / 1000;
                 const remaining = Math.max(0, (_lockedTimerSec || 10) - elapsed);
                 d.innerText = '⏸ ' + remaining.toFixed(1) + '초 (정지)';
