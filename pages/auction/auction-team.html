@@ -486,6 +486,19 @@
         .team-table .main-col { width: 16%; }
         .team-table .hope-col { width: 18%; }
         .team-table .amount-col { width: 14%; text-align: right !important; padding-right: 6px !important; }
+        .team-table.line-fixed .lane-col { width: 18%; text-align: left !important; padding-left: 6px !important; }
+        .team-table.line-fixed .name-col { width: 36%; }
+        .team-table.line-fixed .peak-col { width: 13%; }
+        .team-table.line-fixed .curr-col { width: 13%; }
+        .team-table.line-fixed .amount-col { width: 20%; }
+        .team-row .lane-cell {
+            font-weight: 800;
+            text-align: left !important;
+            padding-left: 6px !important;
+            color: #6b21a8;
+            background: #faf5ff;
+            border-right: 1px solid #e9d5ff;
+        }
         .team-row td {
             padding: 4px 3px;
             border-bottom: 1px solid #f3f4f6;
@@ -965,10 +978,13 @@
                     <div id="timerDisplay" class="timer-pill">⏱ ${currentRoom.auction_timer_seconds || 10}초</div>
                 </div>`;
             } else if (state === 'done') {
-                wrap.innerHTML = `<div class="auction-stage done">
-                    <div class="stage-title">🎉 경매 종료 — 최종 결과</div>
-                    ${buildFinalResultsHtml()}
-                    <button onclick="onTeamExit()" style="width:100%;padding:14px;margin-top:14px;background:linear-gradient(135deg,#5c6bc0,#3f51b5);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;">🚪 나가기</button>
+                wrap.innerHTML = `<div class="auction-stage done" style="text-align:center; padding:40px 24px;">
+                    <div style="font-size:48px; margin-bottom:12px;">🎉</div>
+                    <div style="font-size:20px; font-weight:800; color:#4338ca; margin-bottom:10px;">경매가 완료되었습니다</div>
+                    <div style="font-size:14px; color:#6b7280; line-height:1.6;">
+                        오른쪽 [팀별 현황]에서 결과를 확인하실 수 있습니다.<br>
+                        이 창은 닫으셔도 됩니다.
+                    </div>
                 </div>`;
             }
         }
@@ -1090,78 +1106,167 @@
             const grid = document.getElementById('teamCards');
             if (!grid) return;
             const bidderTeam = currentRoom.current_bid_team_index;
-            grid.innerHTML = allTeams.map(t => {
-                const myMembers = auctionResults.filter(r => r.team_index === t.team_index);
-                const isHighest = bidderTeam === t.team_index;
-                const isMyTeam = t.team_index === myTeam.team_index;
-                const memberSlots = Math.max(0, teamSlotsCount - 1);
-                const isClaimed = !!t.leader_claimed;
-                let leaderRow;
-                if (!isClaimed) {
-                    leaderRow = `<tr class="team-row leader-row unclaimed">
-                        <td colspan="6" class="unclaimed-cell">⏳ 팀장 미접속</td>
-                    </tr>`;
-                } else {
-                    const ld = findMemberDetails(t.leader_name);
-                    const lNick = ld ? ld.nick : t.leader_name;
-                    const lPeak = ld && ld.peakTier ? ld.peakTier : '-';
-                    const lCurr = ld && ld.currentTier ? ld.currentTier : '-';
-                    const lMain = ld && ld.mainLanes && ld.mainLanes.length > 0 ? ld.mainLanes.join(',') : '-';
-                    const lHope = ld && ld.hopeLanes && ld.hopeLanes.length > 0 ? ld.hopeLanes.join(',') : '-';
-                    leaderRow = `<tr class="team-row leader-row">
-                        <td class="name-cell" title="${escapeHtml(lNick)}">👑 ${escapeHtml(lNick)}</td>
-                        <td class="peak-cell">${escapeHtml(lPeak)}</td>
-                        <td class="curr-cell">${escapeHtml(lCurr)}</td>
-                        <td class="main-cell" title="${escapeHtml(lMain)}">${escapeHtml(lMain)}</td>
-                        <td class="hope-cell" title="${escapeHtml(lHope)}">${escapeHtml(lHope)}</td>
-                        <td class="amount-cell leader-pt">${t.leader_score || 0}점</td>
-                    </tr>`;
+            const isLineFixed = ['softLineFixed', 'hard', 'hyperHard'].includes(currentRoom.auction_mode_name);
+            grid.innerHTML = allTeams.map(t => isLineFixed ? buildTeamCardLineFixedTeam(t, bidderTeam) : buildTeamCardDefaultTeam(t, bidderTeam)).join('');
+            document.getElementById('soldCount').innerText = '(' + auctionResults.length + '명)';
+        }
+
+        function buildTeamCardLineFixedTeam(t, bidderTeam) {
+            const LANES = ['탑', '정글', '미드', '원딜', '서폿'];
+            const LANE_ICONS = { '탑': '🛡️', '정글': '🌲', '미드': '⚡', '원딜': '🏹', '서폿': '💖' };
+            const isHighest = bidderTeam === t.team_index;
+            const isMyTeam = t.team_index === myTeam.team_index;
+            const isClaimed = !!t.leader_claimed;
+            const myMembers = auctionResults.filter(r => r.team_index === t.team_index);
+
+            const laneOccupant = {};
+            const ld = findMemberDetails(t.leader_name);
+            const leaderNick = ld ? ld.nick : t.leader_name;
+            const leaderMain = ld && ld.mainLanes ? ld.mainLanes : [];
+            leaderMain.forEach(lane => {
+                if (LANES.includes(lane) && !laneOccupant[lane]) {
+                    laneOccupant[lane] = {
+                        nick: leaderNick,
+                        peak: ld && ld.peakTier ? ld.peakTier : '-',
+                        curr: ld && ld.currentTier ? ld.currentTier : '-',
+                        isLeader: true,
+                        score: t.leader_score || 0
+                    };
                 }
-                let memberRows = '';
-                for (let i = 0; i < memberSlots; i++) {
-                    const m = myMembers[i];
-                    if (m) {
-                        const det = findMemberDetails(m.member_name);
-                        const nick = det ? det.nick : m.member_name;
-                        const peak = det && det.peakTier ? det.peakTier : '-';
-                        const curr = det && det.currentTier ? det.currentTier : '-';
-                        const main = det && det.mainLanes && det.mainLanes.length > 0 ? det.mainLanes.join(',') : '-';
-                        const hope = det && det.hopeLanes && det.hopeLanes.length > 0 ? det.hopeLanes.join(',') : '-';
-                        memberRows += `<tr class="team-row">
-                            <td class="name-cell" title="${escapeHtml(nick)}">${escapeHtml(nick)}</td>
-                            <td class="peak-cell">${escapeHtml(peak)}</td>
-                            <td class="curr-cell">${escapeHtml(curr)}</td>
-                            <td class="main-cell" title="${escapeHtml(main)}">${escapeHtml(main)}</td>
-                            <td class="hope-cell" title="${escapeHtml(hope)}">${escapeHtml(hope)}</td>
-                            <td class="amount-cell">${m.final_amount}P</td>
-                        </tr>`;
-                    } else {
-                        memberRows += `<tr class="team-row empty-row">
-                            <td colspan="6" class="empty-cell">(빈 자리)</td>
+            });
+            myMembers.forEach(m => {
+                const det = findMemberDetails(m.member_name);
+                const lanes = det && det.mainLanes ? det.mainLanes : [];
+                lanes.forEach(lane => {
+                    if (LANES.includes(lane) && !laneOccupant[lane]) {
+                        laneOccupant[lane] = {
+                            nick: det ? det.nick : m.member_name,
+                            peak: det && det.peakTier ? det.peakTier : '-',
+                            curr: det && det.currentTier ? det.currentTier : '-',
+                            isLeader: false,
+                            amount: m.final_amount
+                        };
+                    }
+                });
+            });
+
+            let laneRows;
+            if (!isClaimed) {
+                laneRows = `<tr><td colspan="5" class="unclaimed-cell">⏳ 팀장 미접속</td></tr>`;
+            } else {
+                laneRows = LANES.map(lane => {
+                    const occ = laneOccupant[lane];
+                    const icon = LANE_ICONS[lane] || '';
+                    if (!occ) {
+                        return `<tr class="team-row empty-row">
+                            <td class="lane-cell">${icon} ${lane}</td>
+                            <td colspan="3" class="empty-cell">(빈 자리)</td>
+                            <td class="amount-cell">-</td>
                         </tr>`;
                     }
+                    const rowClass = occ.isLeader ? 'team-row leader-row' : 'team-row';
+                    const namePrefix = occ.isLeader ? '👑 ' : '';
+                    const amount = occ.isLeader ? `${occ.score}점` : `${occ.amount}P`;
+                    return `<tr class="${rowClass}">
+                        <td class="lane-cell">${icon} ${lane}</td>
+                        <td class="name-cell" title="${escapeHtml(occ.nick)}">${namePrefix}${escapeHtml(occ.nick)}</td>
+                        <td class="peak-cell">${escapeHtml(occ.peak)}</td>
+                        <td class="curr-cell">${escapeHtml(occ.curr)}</td>
+                        <td class="amount-cell ${occ.isLeader ? 'leader-pt' : ''}">${amount}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            return `<div class="team-card ${isHighest ? 'highest' : ''} ${isMyTeam ? 'my-team' : ''}">
+                <div class="team-card-head">
+                    <span class="team-card-title">${t.team_index}팀${isMyTeam ? ' (나)' : ''}</span>
+                    <span class="team-card-points">💰 ${t.auction_points}P</span>
+                </div>
+                <table class="team-table line-fixed">
+                    <thead>
+                        <tr>
+                            <th class="lane-col">라인</th>
+                            <th class="name-col">닉네임</th>
+                            <th class="peak-col">최고</th>
+                            <th class="curr-col">현재</th>
+                            <th class="amount-col">금액</th>
+                        </tr>
+                    </thead>
+                    <tbody>${laneRows}</tbody>
+                </table>
+            </div>`;
+        }
+
+        function buildTeamCardDefaultTeam(t, bidderTeam) {
+            const myMembers = auctionResults.filter(r => r.team_index === t.team_index);
+            const isHighest = bidderTeam === t.team_index;
+            const isMyTeam = t.team_index === myTeam.team_index;
+            const memberSlots = Math.max(0, teamSlotsCount - 1);
+            const isClaimed = !!t.leader_claimed;
+            let leaderRow;
+            if (!isClaimed) {
+                leaderRow = `<tr class="team-row leader-row unclaimed">
+                    <td colspan="6" class="unclaimed-cell">⏳ 팀장 미접속</td>
+                </tr>`;
+            } else {
+                const ld = findMemberDetails(t.leader_name);
+                const lNick = ld ? ld.nick : t.leader_name;
+                const lPeak = ld && ld.peakTier ? ld.peakTier : '-';
+                const lCurr = ld && ld.currentTier ? ld.currentTier : '-';
+                const lMain = ld && ld.mainLanes && ld.mainLanes.length > 0 ? ld.mainLanes.join(',') : '-';
+                const lHope = ld && ld.hopeLanes && ld.hopeLanes.length > 0 ? ld.hopeLanes.join(',') : '-';
+                leaderRow = `<tr class="team-row leader-row">
+                    <td class="name-cell" title="${escapeHtml(lNick)}">👑 ${escapeHtml(lNick)}</td>
+                    <td class="peak-cell">${escapeHtml(lPeak)}</td>
+                    <td class="curr-cell">${escapeHtml(lCurr)}</td>
+                    <td class="main-cell" title="${escapeHtml(lMain)}">${escapeHtml(lMain)}</td>
+                    <td class="hope-cell" title="${escapeHtml(lHope)}">${escapeHtml(lHope)}</td>
+                    <td class="amount-cell leader-pt">${t.leader_score || 0}점</td>
+                </tr>`;
+            }
+            let memberRows = '';
+            for (let i = 0; i < memberSlots; i++) {
+                const m = myMembers[i];
+                if (m) {
+                    const det = findMemberDetails(m.member_name);
+                    const nick = det ? det.nick : m.member_name;
+                    const peak = det && det.peakTier ? det.peakTier : '-';
+                    const curr = det && det.currentTier ? det.currentTier : '-';
+                    const main = det && det.mainLanes && det.mainLanes.length > 0 ? det.mainLanes.join(',') : '-';
+                    const hope = det && det.hopeLanes && det.hopeLanes.length > 0 ? det.hopeLanes.join(',') : '-';
+                    memberRows += `<tr class="team-row">
+                        <td class="name-cell" title="${escapeHtml(nick)}">${escapeHtml(nick)}</td>
+                        <td class="peak-cell">${escapeHtml(peak)}</td>
+                        <td class="curr-cell">${escapeHtml(curr)}</td>
+                        <td class="main-cell" title="${escapeHtml(main)}">${escapeHtml(main)}</td>
+                        <td class="hope-cell" title="${escapeHtml(hope)}">${escapeHtml(hope)}</td>
+                        <td class="amount-cell">${m.final_amount}P</td>
+                    </tr>`;
+                } else {
+                    memberRows += `<tr class="team-row empty-row">
+                        <td colspan="6" class="empty-cell">(빈 자리)</td>
+                    </tr>`;
                 }
-                return `<div class="team-card ${isHighest ? 'highest' : ''} ${isMyTeam ? 'my-team' : ''}">
-                    <div class="team-card-head">
-                        <span class="team-card-title">${t.team_index}팀${isMyTeam ? ' (나)' : ''}</span>
-                        <span class="team-card-points">💰 ${t.auction_points}P</span>
-                    </div>
-                    <table class="team-table">
-                        <thead>
-                            <tr>
-                                <th class="name-col">닉네임</th>
-                                <th class="peak-col">최고</th>
-                                <th class="curr-col">현재</th>
-                                <th class="main-col">주</th>
-                                <th class="hope-col">희망</th>
-                                <th class="amount-col">금액</th>
-                            </tr>
-                        </thead>
-                        <tbody>${leaderRow}${memberRows}</tbody>
-                    </table>
-                </div>`;
-            }).join('');
-            document.getElementById('soldCount').innerText = '(' + auctionResults.length + '명)';
+            }
+            return `<div class="team-card ${isHighest ? 'highest' : ''} ${isMyTeam ? 'my-team' : ''}">
+                <div class="team-card-head">
+                    <span class="team-card-title">${t.team_index}팀${isMyTeam ? ' (나)' : ''}</span>
+                    <span class="team-card-points">💰 ${t.auction_points}P</span>
+                </div>
+                <table class="team-table">
+                    <thead>
+                        <tr>
+                            <th class="name-col">닉네임</th>
+                            <th class="peak-col">최고</th>
+                            <th class="curr-col">현재</th>
+                            <th class="main-col">주</th>
+                            <th class="hope-col">희망</th>
+                            <th class="amount-col">금액</th>
+                        </tr>
+                    </thead>
+                    <tbody>${leaderRow}${memberRows}</tbody>
+                </table>
+            </div>`;
         }
 
         function renderPools() {
